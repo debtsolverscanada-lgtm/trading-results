@@ -47,7 +47,7 @@
 <script>
 // Minimal stand-in for the dashboard runtime: loads ./data/<id>.csv and re-renders on change.
 (() => {
-  const ids = ["live_trades", "live_status", "report", "deals", "yearly", "stress", "lessons"];
+  const ids = ["live_trades", "live_status", "gold_trades", "gold_status", "report", "deals", "yearly", "stress", "lessons"];
   const store = {}, subs = [];
   let params = { asset: 'ETH', fees: 'low' };
   const css = getComputedStyle(document.documentElement);
@@ -55,7 +55,7 @@
   const run = () => subs.forEach((fn) => { try { fn(); } catch (e) { console.error(e); } });
   ids.forEach((id) => {
     store[id] = { status: 'loading', data: [], columns: [] };
-    d3.csv(`data/${id}.csv?v=2026-10-23T22:23`).then((rows) => {
+    d3.csv(`data/${id}.csv?v=2026-10-23T22:37`).then((rows) => {
       store[id] = { status: 'ok', data: rows, columns: rows.columns || [] };
       run();
     }).catch((e) => { store[id] = { status: 'error', data: [], message: String(e) }; run(); });
@@ -101,6 +101,7 @@
   .k-sub { color: var(--color-fg-muted); max-width: 66ch; font-size: 1.02rem; }
   .k-sub b { color: var(--color-fg); }
   .k-box { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: 18px; padding: 22px; min-width: 0; }
+  .k-now.k-gold { background: var(--k-sun); border-color: var(--k-sun-edge); }
   .k-num-dot { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; font-size: .95rem; color: #fff; flex: none; }
 
   /* Hero */
@@ -256,6 +257,26 @@
       <span><i style="border-color:var(--color-bad);border-top-style:dashed"></i>Safety stop: if the price touches it, the robot gets out so the loss stays small</span>
     </div>
     <div class="k-trades" id="live-cards" data-source="live_trades"></div>
+  </section>
+
+  <!-- Gold robot -->
+  <section class="k-sec" id="gold">
+    <h2><span class="k-num-dot" style="background:#e3a008">G</span>Meet the gold robot</h2>
+    <div class="k-box k-now k-gold">
+      <div class="k-now-head">
+        <span class="k-pill" data-source="gold_status" data-field="state">—</span>
+        <span class="k-time">Last checked <span data-source="gold_status" data-field="as_of">—</span></span>
+      </div>
+      <p class="k-say" id="gold-say"><span class="dash-skeleton">—</span></p>
+      <div class="k-nums">
+        <div class="k-num"><span class="lab">Gold price (per ounce)</span><span class="big" data-source="gold_status" data-field="price">—</span></div>
+        <div class="k-num"><span class="lab">Pretend money</span><span class="big" data-source="gold_status" data-field="balance">—</span><span class="small">Started with <span data-source="gold_status" data-field="deposit">—</span> on <span data-source="gold_status" data-field="start_date">—</span></span></div>
+        <div class="k-num"><span class="lab">Scoreboard</span><span class="big" id="gold-wl">—</span><div class="k-dots" id="gold-dots" aria-hidden="true"></div></div>
+        <div class="k-num"><span class="lab">Trend right now</span><span class="small" style="font-size:1rem;color:var(--color-fg);font-weight:600" data-source="gold_status" data-field="trend">—</span><span class="small">Fast average <span data-source="gold_status" data-field="ema20">—</span> · slow <span data-source="gold_status" data-field="ema50">—</span></span></div>
+      </div>
+    </div>
+    <p class="k-sub">The gold robot follows the trend on 15-minute charts. It compares a <b>fast average</b> of the last 20 prices with a <b>slow average</b> of the last 50. When the fast one crosses above, it buys. When it crosses below, it sells. It uses FX-broker prices (tiny fees), not Liquid.</p>
+    <div class="k-trades" id="gold-cards" data-source="gold_trades"></div>
   </section>
 
   <!-- 3. The 6-year test -->
@@ -469,20 +490,48 @@
     closed.forEach((x) => dots.append(el('i', num(x.pnl_usd) > 0 ? 'w' : 'l')));
   }
 
+  function drawGoldNow() {
+    const st = dash.data('gold_status'), tr = dash.data('gold_trades');
+    const say = document.getElementById('gold-say');
+    if (st.status === 'error') return fail(say);
+    if (st.status !== 'ok' || !st.data.length) return;
+    const r = st.data[0];
+    document.querySelectorAll('#gold [data-source="gold_status"]').forEach((e) => {
+      const f = e.dataset.field, n = num(r[f]);
+      e.textContent = ['price', 'balance', 'deposit', 'ema20', 'ema50'].includes(f) ? dollars(n) : f === 'start_date' ? prettyDate(r[f]) : r[f];
+      if (f === 'balance') tone(e, n - num(r.deposit));
+    });
+    const rows = tr.status === 'ok' ? tr.data : [];
+    const open = rows.find((x) => x.status === 'open');
+    if (open) {
+      const w = 'trade_id=' + open.trade_id, pnl = num(open.pnl_usd);
+      const p = mark('b', 'gold_trades', 'pnl_usd', w, signedDollars(pnl)); tone(p, pnl);
+      say.replaceChildren(`The gold robot ${open.side === 'LONG' ? 'bought' : 'sold'} gold at `, mark('b', 'gold_trades', 'entry', w, dollars(num(open.entry))),
+        ` and is ${pnl >= 0 ? 'up' : 'down'} `, p, '. It will switch sides when the two averages cross again.');
+    } else {
+      say.replaceChildren('The gold robot is waiting for the two averages to cross so it can make its first trade.');
+    }
+    const closed = rows.filter((x) => x.status === 'closed');
+    const wins = closed.filter((x) => num(x.pnl_usd) > 0).length;
+    document.getElementById('gold-wl').textContent = closed.length ? `${wins} wins, ${closed.length - wins} losses` : 'No finished trades yet';
+    const dots = document.getElementById('gold-dots'); dots.replaceChildren();
+    closed.forEach((x) => dots.append(el('i', num(x.pnl_usd) > 0 ? 'w' : 'l')));
+  }
+
   // ---------- 2. Trade cards
   function spark(parent, t) {
     const pts = (t.path || '').split(';').map(Number).filter((v) => !isNaN(v));
     if (pts.length < 2) return;
     const W = 300, H = 70, pad = 6;
-    const stop = num(t.stop), entry = num(t.entry);
-    const lo = Math.min(stop, ...pts), hi = Math.max(stop, ...pts);
+    const stop = num(t.stop), entry = num(t.entry), hasStop = stop != null && !isNaN(stop);
+    const lo = Math.min(...(hasStop ? [stop] : []), ...pts), hi = Math.max(...(hasStop ? [stop] : []), ...pts);
     const x = d3.scaleLinear([0, pts.length - 1], [pad, W - pad]);
     const y = d3.scaleLinear([lo, hi], [H - pad, pad]);
     const svg = d3.select(parent).append('svg').attr('class', 'k-spark').attr('viewBox', `0 0 ${W} ${H}`).attr('preserveAspectRatio', 'none').attr('role', 'img')
       .attr('aria-label', `Price went from ${dollars(entry)} to ${dollars(pts[pts.length - 1])}`);
     const line = (yy, color, dash_) => svg.append('line').attr('x1', pad).attr('x2', W - pad).attr('y1', yy).attr('y2', yy).attr('stroke', color)
       .attr('stroke-width', 1.5).attr('stroke-dasharray', dash_ || null).attr('vector-effect', 'non-scaling-stroke');
-    line(y(stop), 'var(--color-bad)', '5 4');
+    if (hasStop) line(y(stop), 'var(--color-bad)', '5 4');
     line(y(entry), 'var(--cds-chart-reference)');
     const win = num(t.pnl_usd) >= 0;
     svg.append('path').datum(pts).attr('fill', 'none').attr('stroke', win ? 'var(--color-ok)' : 'var(--color-bad)').attr('stroke-width', 2.5)
@@ -490,9 +539,9 @@
       .attr('d', d3.line().x((_, i) => x(i)).y((v) => y(v)));
   }
 
-  function drawCards() {
-    const box = document.getElementById('live-cards');
-    const q = dash.data('live_trades');
+  function drawCards(boxId = 'live-cards', ds = 'live_trades', coin = 'ETH') {
+    const box = document.getElementById(boxId);
+    const q = dash.data(ds);
     if (q.status === 'error') return fail(box);
     box.replaceChildren();
     if (q.status !== 'ok') return;
@@ -510,21 +559,24 @@
       const top = el('div', 'k-trade-top');
       const left = el('div');
       left.append(el('div', 'k-date', prettyDate(t.date)), el('span', 'k-badge ' + (isOpen ? 'open' : pnl > 0 ? 'win' : 'loss'), isOpen ? 'In the trade now' : pnl > 0 ? 'Win' : 'Loss'));
-      const res = mark('div', 'live_trades', 'pnl_usd', w, signedDollars(pnl)); res.classList.add('k-result'); tone(res, pnl);
+      const res = mark('div', ds, 'pnl_usd', w, signedDollars(pnl)); res.classList.add('k-result'); tone(res, pnl);
       top.append(left, res);
       const what = el('p', 'k-what');
-      const why = isOpen ? 'Still going.' : /stop/.test(t.reason) ? 'It hit the safety stop.' : 'Closed at the end of the day.';
-      what.append(el('b', null, t.side === 'LONG' ? 'Bought' : 'Sold'), t.side === 'LONG' ? ' (betting ETH goes up) at ' : ' (betting ETH goes down) at ',
-        mark('b', 'live_trades', 'entry', w, dollars(num(t.entry))), isOpen ? ', now ' : ', got out at ',
-        mark('b', 'live_trades', 'exit', w, dollars(num(t.exit))), '. ' + why);
+      const why = isOpen ? 'Still going.' : /stop/.test(t.reason) ? 'It hit the safety stop.' : /crossed/.test(t.reason) ? 'The averages crossed back.' : 'Closed at the end of the day.';
+      what.append(el('b', null, t.side === 'LONG' ? 'Bought' : 'Sold'), t.side === 'LONG' ? ` (betting ${coin} goes up) at ` : ` (betting ${coin} goes down) at `,
+        mark('b', ds, 'entry', w, dollars(num(t.entry))), isOpen ? ', now ' : ', got out at ',
+        mark('b', ds, 'exit', w, dollars(num(t.exit))), '. ' + why);
       const sp = el('div'); spark(sp, t);
       const facts = el('div', 'k-facts');
       facts.append(
-        el('span', null, 'At its best'), mark('span', 'live_trades', 'best_usd', w, signedDollars(num(t.best_usd))),
-        el('span', null, 'At its worst'), mark('span', 'live_trades', 'worst_usd', w, signedDollars(num(t.worst_usd))),
-        el('span', null, 'Time in the trade'), mark('span', 'live_trades', 'held', w, t.held),
-        el('span', null, 'Amount of ETH'), mark('span', 'live_trades', 'lots', w, d3.format(',.3f')(num(t.lots))),
-        el('span', null, 'Most it could lose'), mark('span', 'live_trades', 'risk_usd', w, dollars(num(t.risk_usd))));
+        el('span', null, 'At its best'), mark('span', ds, 'best_usd', w, signedDollars(num(t.best_usd))),
+        el('span', null, 'At its worst'), mark('span', ds, 'worst_usd', w, signedDollars(num(t.worst_usd))),
+        el('span', null, 'Time in the trade'), mark('span', ds, 'held', w, t.held));
+      if (coin === 'ETH') facts.append(
+        el('span', null, 'Amount of ETH'), mark('span', ds, 'lots', w, d3.format(',.3f')(num(t.lots))),
+        el('span', null, 'Most it could lose'), mark('span', ds, 'risk_usd', w, dollars(num(t.risk_usd))));
+      else facts.append(el('span', null, 'Amount of gold'), mark('span', ds, 'lots', w, d3.format('.2f')(num(t.lots)) + ' lots'),
+        el('span', null, 'Value of the trade'), mark('span', ds, 'position_usd', w, dollars(num(t.position_usd))));
       card.append(top, what, sp, facts);
       box.append(card);
     });
@@ -699,6 +751,8 @@
   dash.onData(() => {
     drawNow();
     drawCards();
+    drawGoldNow();
+    drawCards('gold-cards', 'gold_trades', 'gold');
     drawTest();
     drawBalance();
     drawYearly();
@@ -710,6 +764,6 @@
 
 </div>
 <p class="site-foot">Simulated trading for research. No real money, no orders placed, not financial advice.
-Updated 2026-10-23 22:23 UTC.</p>
+Updated 2026-10-23 22:37 UTC.</p>
 </body>
 </html>
