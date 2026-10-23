@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Paper Trading Desk</title>
+<meta name="description" content="Simulated ETH and gold breakout trading: live simulation, strategy report and every simulated deal. No real money.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-anthropic-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-anthropic-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --color-bg: #f6f7f9; --color-panel: #ffffff; --color-fg: #16202b; --color-fg-muted: #5b6876;
+    --color-border-line: #dde2e8; --color-ok: #127a4b; --color-bad: #b42318; --color-warn: #a15c00;
+    --cds-text-secondary: #5b6876; --cds-surface-popover: #ffffff; --cds-border: #d3d9e0;
+    --cds-shadow-popover: 0 6px 20px rgba(22, 32, 43, .12);
+    --cds-chart-grid: #e8ecf0; --cds-chart-axis: #b7c0ca; --cds-chart-reference: #8a96a3; --cds-chart-status-critical: #c8372d;
+    --c1: #1f5fbf; --c2: #0f8a7e; --c3: #8a5cc2; --c4: #c26b1f; --c5: #3d8f3d; --c6: #b8487a; --c7: #4a6b8a; --c8: #9a8a2c;
+    --cds-gap-xs: 4px; --cds-gap-sm: 8px; --cds-gap-md: 14px; --cds-gap-lg: 22px; --cds-gap-xl: 32px;
+    --cds-pad-xs: 4px; --cds-pad-sm: 8px; --cds-pad-md: 12px; --cds-pad-lg: 18px;
+    --cds-radius: 8px; --cds-font-size-caption: 12.5px; --cds-font-size-body: 14.5px;
+    --cds-font-size-heading: 16px; --cds-font-size-title: 26px; --cds-font-weight-medium: 600;
+    --cds-dur-slow: .3s; --cds-ease-out: cubic-bezier(.2, .8, .2, 1);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-bg: #0f141a; --color-panel: #161d25; --color-fg: #e6ebf0; --color-fg-muted: #9aa7b4;
+      --color-border-line: #26313c; --color-ok: #4cc38a; --color-bad: #f07167; --color-warn: #f0b44c;
+      --cds-text-secondary: #9aa7b4; --cds-surface-popover: #1c252f; --cds-border: #2e3a46;
+      --cds-shadow-popover: 0 6px 20px rgba(0, 0, 0, .45);
+      --cds-chart-grid: #222c36; --cds-chart-axis: #3a4652; --cds-chart-reference: #6b7885; --cds-chart-status-critical: #f07167;
+      --c1: #6aa3ff; --c2: #3fc4b4; --c3: #b493e8; --c4: #f0a35e; --c5: #79c879; --c6: #e886b2; --c7: #8fb0cf; --c8: #d6c66a;
+      color-scheme: dark;
+    }
+  }
+  html, body { margin: 0; background: var(--color-bg); color: var(--color-fg); font-family: var(--font-anthropic-sans); font-size: var(--cds-font-size-body); }
+  #dash-root { max-width: 1280px; margin: 0 auto; padding-block: 24px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .dash-skeleton { color: transparent !important; background: var(--color-border-line); border-radius: 4px; min-height: 1em; }
+  .site-foot { max-width: 1280px; margin: 0 auto 32px; padding: 0 16px; color: var(--color-fg-muted); font-size: 12.5px; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+// Minimal stand-in for the dashboard runtime: loads ./data/<id>.csv and re-renders on change.
+(() => {
+  const ids = ["live_trades", "live_status", "report", "deals", "yearly", "stress", "lessons"];
+  const store = {}, subs = [];
+  let params = { asset: 'ETH', fees: 'low' };
+  const css = getComputedStyle(document.documentElement);
+  const colors = ['--c1','--c2','--c3','--c4','--c5','--c6','--c7','--c8'].map((v) => `var(${v})`);
+  const run = () => subs.forEach((fn) => { try { fn(); } catch (e) { console.error(e); } });
+  ids.forEach((id) => {
+    store[id] = { status: 'loading', data: [], columns: [] };
+    d3.csv(`data/${id}.csv?v=2026-10-23T22:13`).then((rows) => {
+      store[id] = { status: 'ok', data: rows, columns: rows.columns || [] };
+      run();
+    }).catch((e) => { store[id] = { status: 'error', data: [], message: String(e) }; run(); });
+  });
+  window.dash = {
+    data: (id) => store[id] || { status: 'missing', data: [] },
+    onData: (fn) => { subs.push(fn); fn(); },
+    params: () => ({ ...params }),
+    setParams: (p) => { params = { ...params, ...p }; run(); },
+    resetParams: () => { params = { asset: 'ETH', fees: 'low' }; run(); },
+    setLink: () => {}, refresh: () => {}, calc: () => {}, loader: () => {},
+    colors,
+  };
+  let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(run, 150); });
+})();
+</script>
+</head>
+<body>
+<div id="dash-root">
+<style>
+  /* Layout: MT5 Strategy Tester report. Settings + switches, a dense label/value results grid,
+     balance graph by trade number, yearly profit, deals history, then stress test and patterns. */
+  .mt { display: grid; gap: var(--cds-gap-lg); font-family: var(--font-anthropic-sans); font-variant-numeric: tabular-nums; }
+  .mt-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: var(--cds-gap-md); }
+  .mt-head > div { flex: 1 1 22rem; min-width: 0; }
+  .mt h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+  .mt-sub { margin: var(--cds-gap-xs) 0 0; color: var(--color-fg-muted); max-width: 72ch; }
+  .mt-sub b { color: var(--color-fg); font-weight: 600; }
+  .mt-switches { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); }
+  .mt-seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; }
+  .mt-seg button { font: inherit; font-size: var(--cds-font-size-caption); padding: var(--cds-pad-xs) var(--cds-pad-md); border: 0; background: var(--color-panel); color: var(--color-fg-muted); cursor: pointer; }
+  .mt-seg button[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); }
+  .mt-seg button:focus-visible { outline: 2px solid var(--color-fg); outline-offset: -2px; }
+  .mt-find { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cds-gap-sm); background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-sm) var(--cds-pad-md); }
+  .mt-find label { font-weight: 600; font-size: var(--cds-font-size-caption); }
+  .mt-find input { flex: 1 1 16rem; min-width: 0; font: inherit; padding: var(--cds-pad-xs) var(--cds-pad-sm); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); }
+  .mt-live { display: grid; gap: var(--cds-gap-md); }
+  .mt-live-top { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: var(--cds-gap-md); }
+  .mt-stat { display: grid; gap: 2px; }
+  .mt-stat .lab { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .mt-stat .big { font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-title); line-height: 1.15; }
+  .mt-state { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+  .mt-state::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: var(--color-ok); }
+  .mt-levels { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .mt-levels b { color: var(--color-fg); font-weight: 600; }
+  .mt-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); min-width: 0; display: grid; gap: var(--cds-gap-sm); align-content: start; }
+  .mt-card h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
+  .mt-note { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: 0; }
+  .mt-report { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: var(--cds-gap-md) var(--cds-gap-xl); }
+  .mt-group h3 { font-size: var(--cds-font-size-caption); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--color-fg-muted); margin: 0 0 4px; }
+  .mt-kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; font-size: var(--cds-font-size-caption); }
+  .mt-kv > span { padding: 5px 0; border-bottom: 1px solid var(--color-border-line); }
+  .mt-kv > span:nth-child(odd) { color: var(--color-fg-muted); padding-right: var(--cds-gap-sm); }
+  .mt-kv > span:nth-child(even) { text-align: right; white-space: nowrap; }
+  .mt-kv .key { color: var(--color-fg); font-weight: 600; }
+  .mt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: var(--cds-gap-md); }
+  .mt-chart { position: relative; min-height: 260px; }
+  .mt-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; }
+  .mt-tip .d { color: var(--cds-text-secondary); }
+  .mt-tools { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: center; }
+  .mt-tools input, .mt-tools select { font: inherit; font-size: var(--cds-font-size-caption); padding: var(--cds-pad-xs) var(--cds-pad-sm); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); min-width: 0; }
+  .mt-tools input { flex: 1 1 14rem; }
+  .mt-scroll { overflow: auto; max-height: 36rem; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); }
+  .mt-scroll.flat { max-height: none; border: 0; }
+  .mt table { border-collapse: collapse; width: 100%; font-size: var(--cds-font-size-caption); }
+  .mt th, .mt td { text-align: left; padding: 4px 8px; white-space: nowrap; }
+  .mt th { position: sticky; top: 0; background: var(--color-panel); color: var(--color-fg-muted); font-weight: 600; border-bottom: 1px solid var(--color-border-line); z-index: 1; }
+  .mt th.num, .mt td.num { text-align: right; }
+  .mt tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--color-fg) 3%, transparent); }
+  .mt tbody tr.out td { border-bottom: 1px solid var(--color-border-line); }
+  .mt td.cmt { white-space: normal; min-width: 18rem; color: var(--color-fg-muted); }
+  .mt td.buy { color: var(--color-ok); }
+  .mt td.sell { color: var(--color-bad); }
+  .pos { color: var(--color-ok); }
+  .neg { color: var(--color-bad); }
+  .mt-fail { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: inherit; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+  .mt-fail::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+  [data-dash-source-state=empty] { color: transparent; }
+  [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+  @media (max-width: 40rem) { .mt .hide-narrow { display: none; } }
+</style>
+
+<div class="mt">
+  <header class="mt-head" id="top">
+    <div>
+      <h1>Paper Trading Desk</h1>
+      <p class="mt-sub" id="takeaway"><span class="dash-skeleton">—</span></p>
+    </div>
+    <div class="mt-switches">
+      <div class="mt-seg" role="group" aria-label="Symbol">
+        <button type="button" data-asset="ETH" id="sym-eth">ETHUSD</button>
+        <button type="button" data-asset="XAUUSD" id="sym-gold">XAUUSD</button>
+      </div>
+      <div class="mt-seg" role="group" aria-label="Fees">
+        <button type="button" data-fees="low" id="fees-low">Low fees</button>
+        <button type="button" data-fees="liquid" id="fees-liquid">Liquid fees</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="mt-card mt-live" id="live">
+    <h2>Live simulation</h2>
+    <p class="mt-note">A $1,000 simulated account trading real ETH prices since <span data-source="live_status" data-field="start_date">—</span>, the first day after the research data. Liquid fees. No real money, no orders placed.</p>
+    <div class="mt-live-top">
+      <div class="mt-stat"><span class="lab">Right now (<span data-source="live_status" data-field="as_of">—</span>)</span><span class="mt-state" data-source="live_status" data-field="state">—</span><span class="mt-levels" id="live-levels"></span></div>
+      <div class="mt-stat"><span class="lab">ETH price</span><span class="big" data-source="live_status" data-field="price">—</span></div>
+      <div class="mt-stat"><span class="lab">Balance (Liquid fees)</span><span class="big" data-source="live_status" data-field="balance">—</span><span class="mt-levels">At low fees: <span data-source="live_status" data-field="balance_low_fee">—</span></span></div>
+      <div class="mt-stat"><span class="lab">Closed trades</span><span class="big" data-source="live_status" data-field="trades_closed">—</span><span class="mt-levels">Next: <span data-source="live_status" data-field="next_events">—</span></span></div>
+    </div>
+    <div class="mt-scroll flat">
+      <table id="live-table" data-source="live_trades" data-row-key="trade_id">
+        <thead><tr>
+          <th data-field="date">Date</th>
+          <th data-field="side">Side</th>
+          <th class="hide-narrow" data-field="entry_time">In (UTC)</th>
+          <th class="num" data-field="entry">Entry</th>
+          <th class="num hide-narrow" data-field="stop">Stop</th>
+          <th class="num" data-field="lots">Lots</th>
+          <th class="num hide-narrow" data-field="risk_usd">Risk</th>
+          <th class="num" data-field="exit">Exit</th>
+          <th data-field="reason">Why</th>
+          <th class="num" data-field="pnl_usd">Profit</th>
+          <th class="num" data-field="balance">Balance</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="mt-find" id="find">
+    <label for="find-input">Find trades</label>
+    <input id="find-input" type="search" placeholder="Try: CPI, payrolls, stop loss, 2024-08, hot, sell" aria-label="Find trades">
+    <span class="mt-note" id="find-count"></span>
+  </div>
+
+  <section class="mt-card" id="report">
+    <h2>Strategy tester report</h2>
+    <div class="mt-report">
+      <div class="mt-group">
+        <h3>Settings</h3>
+        <div class="mt-kv">
+          <span>Expert</span><span>Asia range breakout</span>
+          <span>Symbol</span><span data-source="report" data-field="symbol">—</span>
+          <span>Period</span><span><span data-source="report" data-field="period">—</span> (<span data-source="report" data-field="from">—</span> to <span data-source="report" data-field="to">—</span>)</span>
+          <span>Fees</span><span><span data-source="report" data-field="venue">—</span>, <span data-source="report" data-field="round_trip_cost_pct">—</span> round trip</span>
+          <span>Initial deposit</span><span data-source="report" data-field="initial_deposit">—</span>
+          <span>Risk per trade</span><span>0.5% of balance at the stop</span>
+          <span>Skipped (min lot too risky)</span><span data-source="report" data-field="skipped_trades">—</span>
+          <span>Raised to min lot</span><span data-source="report" data-field="min_lot_trades">—</span>
+        </div>
+      </div>
+      <div class="mt-group">
+        <h3>Results</h3>
+        <div class="mt-kv">
+          <span class="key">Total net profit</span><span class="key" data-source="report" data-field="total_net_profit">—</span>
+          <span>Gross profit</span><span data-source="report" data-field="gross_profit">—</span>
+          <span>Gross loss</span><span data-source="report" data-field="gross_loss">—</span>
+          <span>Total commission</span><span data-source="report" data-field="total_commission">—</span>
+          <span>Profit factor</span><span data-source="report" data-field="profit_factor">—</span>
+          <span>Expected payoff</span><span data-source="report" data-field="expected_payoff">—</span>
+          <span>Recovery factor</span><span data-source="report" data-field="recovery_factor">—</span>
+          <span>Sharpe ratio</span><span data-source="report" data-field="sharpe_ratio">—</span>
+          <span>Balance drawdown absolute</span><span data-source="report" data-field="balance_dd_absolute">—</span>
+          <span>Balance drawdown maximal</span><span><span data-source="report" data-field="balance_dd_maximal">—</span> (<span data-source="report" data-field="balance_dd_maximal_pct">—</span>)</span>
+          <span class="key">Final balance</span><span class="key" data-source="report" data-field="final_balance">—</span>
+        </div>
+      </div>
+      <div class="mt-group">
+        <h3>Trades</h3>
+        <div class="mt-kv">
+          <span>Total trades</span><span data-source="report" data-field="total_trades">—</span>
+          <span>Short trades (won %)</span><span><span data-source="report" data-field="short_trades">—</span> (<span data-source="report" data-field="short_won_pct">—</span>)</span>
+          <span>Long trades (won %)</span><span><span data-source="report" data-field="long_trades">—</span> (<span data-source="report" data-field="long_won_pct">—</span>)</span>
+          <span>Profit trades (% of total)</span><span><span data-source="report" data-field="profit_trades">—</span> (<span data-source="report" data-field="profit_trades_pct">—</span>)</span>
+          <span>Loss trades (% of total)</span><span><span data-source="report" data-field="loss_trades">—</span> (<span data-source="report" data-field="loss_trades_pct">—</span>)</span>
+          <span>Largest profit trade</span><span data-source="report" data-field="largest_profit">—</span>
+          <span>Largest loss trade</span><span data-source="report" data-field="largest_loss">—</span>
+          <span>Average profit trade</span><span data-source="report" data-field="average_profit">—</span>
+          <span>Average loss trade</span><span data-source="report" data-field="average_loss">—</span>
+          <span>Max consecutive wins ($)</span><span><span data-source="report" data-field="max_consecutive_wins">—</span> (<span data-source="report" data-field="max_consecutive_wins_usd">—</span>)</span>
+          <span>Max consecutive losses ($)</span><span><span data-source="report" data-field="max_consecutive_losses">—</span> (<span data-source="report" data-field="max_consecutive_losses_usd">—</span>)</span>
+        </div>
+      </div>
+      <div class="mt-group">
+        <h3>Position size</h3>
+        <div class="mt-kv">
+          <span>Average volume</span><span><span data-source="report" data-field="avg_lots">—</span> lots</span>
+          <span>Smallest volume</span><span><span data-source="report" data-field="min_lots">—</span> lots</span>
+          <span>Largest volume</span><span><span data-source="report" data-field="max_lots">—</span> lots</span>
+          <span>Average position value</span><span data-source="report" data-field="avg_position_usd">—</span>
+          <span>Average risk to stop</span><span data-source="report" data-field="avg_risk_usd">—</span>
+          <span>Average stop distance</span><span data-source="report" data-field="avg_stop_distance_pct">—</span>
+          <span>Lot size</span><span id="lot-def">—</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="mt-grid">
+    <section class="mt-card" id="balance-card">
+      <h2>Balance</h2>
+      <p class="mt-note">Account balance after each trade, by trade number. Dashed line is the starting deposit.</p>
+      <div class="mt-chart" id="balance-chart" data-source="deals"></div>
+    </section>
+    <section class="mt-card" id="yearly-card">
+      <h2>Net profit by year</h2>
+      <p class="mt-note">Dollars made or lost each calendar year; percent of the balance at the start of that year.</p>
+      <div class="mt-chart" id="yearly-chart" data-source="yearly"></div>
+    </section>
+  </div>
+
+  <section class="mt-card" id="deals-card">
+    <h2>Deals</h2>
+    <p class="mt-note" id="deals-note">Every simulated deal. Each day was traded bar by bar without seeing later bars. Not real money.</p>
+    <div class="mt-tools">
+      <input id="deals-search" type="search" placeholder="Search date, type, comment or news" aria-label="Search deals">
+      <select id="deals-filter" aria-label="Show">
+        <option value="all">All trades</option>
+        <option value="win">Winning trades</option>
+        <option value="loss">Losing trades</option>
+        <option value="stop">Stopped out</option>
+        <option value="news">News days</option>
+        <option value="hot">Hot CPI days</option>
+        <option value="cool">Cool CPI days</option>
+      </select>
+      <span class="mt-note" id="deals-count"></span>
+    </div>
+    <div class="mt-scroll">
+      <table id="deals-table" data-source="deals" data-row-key="deal_id">
+        <thead><tr>
+          <th data-field="time">Time (UTC)</th>
+          <th class="num hide-narrow" data-field="order">Deal</th>
+          <th class="hide-narrow" data-field="symbol">Symbol</th>
+          <th data-field="type">Type</th>
+          <th data-field="direction">Direction</th>
+          <th class="num" data-field="volume">Volume</th>
+          <th class="num" data-field="price">Price</th>
+          <th class="num hide-narrow" data-field="sl">S/L</th>
+          <th class="num hide-narrow" data-field="commission">Commission</th>
+          <th class="num" data-field="profit">Profit</th>
+          <th class="num" data-field="balance">Balance</th>
+          <th data-field="comment">Comment</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="mt-grid">
+    <section class="mt-card" id="stress-card">
+      <h2>Stress test: 1,000 simulated years</h2>
+      <p class="mt-note">Real trades reshuffled into 1,000 alternative years, plus fee and slippage shocks. Both fee levels.</p>
+      <div class="mt-scroll flat">
+        <table id="stress-table" data-source="stress" data-row-key="key">
+          <thead><tr>
+            <th data-field="venue">Fees</th>
+            <th class="num" data-field="median_year_pct">Median year</th>
+            <th class="num" data-field="bad_year_pct">Bad year (5%)</th>
+            <th class="num" data-field="losing_year_chance_pct">Losing-year chance</th>
+            <th class="num" data-field="bad_drawdown_pct">Bad drawdown</th>
+            <th class="num hide-narrow" data-field="fees_doubled_pct">Fees doubled</th>
+            <th class="num hide-narrow" data-field="without_best10_pct">Without best 10</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+    <section class="mt-card" id="lessons-card">
+      <h2>Patterns found</h2>
+      <p class="mt-note">Average result per trade in basis points (1 bps = 0.01%), grouped. Patterns found after the fact, not yet rules.</p>
+      <div class="mt-scroll flat" style="max-height: 22rem; overflow: auto">
+        <table id="lessons-table" data-source="lessons" data-row-key="key">
+          <thead><tr>
+            <th data-field="group">Group</th>
+            <th class="num" data-field="trades">Trades</th>
+            <th class="num" data-field="avg_net_bps">Avg bps</th>
+            <th class="num" data-field="win_pct">Win %</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  const num = (v) => (v === '' || v == null ? null : Number(v));
+  const usd = d3.format(',.2f'), usd0 = d3.format('$,.0f'), int = d3.format(','), f1 = d3.format(',.1f');
+  const money = (v) => (v == null || isNaN(v) ? '—' : (v < 0 ? '-' : '') + usd(Math.abs(v)));
+  const tone = (el, v) => { el.classList.toggle('pos', v > 0); el.classList.toggle('neg', v < 0); };
+  const asset = () => dash.params().asset || 'ETH';
+  const fees = () => dash.params().fees || 'low';
+  const venueFor = (a, f) => (f === 'liquid' ? 'Liquid' : a === 'ETH' ? 'Low-fee exchange' : 'FX broker');
+  const venue = () => venueFor(asset(), fees());
+  const fail = (el) => { el.replaceChildren(); const d = document.createElement('div'); d.className = 'mt-fail'; d.textContent = 'Failed to load'; el.append(d); };
+
+  document.querySelectorAll('[data-asset]').forEach((b) => b.addEventListener('click', () => dash.setParams({ asset: b.dataset.asset })));
+  document.querySelectorAll('[data-fees]').forEach((b) => b.addEventListener('click', () => dash.setParams({ fees: b.dataset.fees })));
+  const findInput = document.getElementById('find-input'), dealsSearch = document.getElementById('deals-search');
+  findInput.addEventListener('input', () => { dealsSearch.value = findInput.value; drawDeals(); });
+  findInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('deals-card').scrollIntoView({ behavior: 'smooth' }); });
+  dealsSearch.addEventListener('input', () => { findInput.value = dealsSearch.value; drawDeals(); });
+  document.getElementById('deals-filter').addEventListener('change', () => drawDeals());
+
+  function drawReport() {
+    const a = asset(), v = venue(), key = `${a}-${v}`;
+    document.querySelectorAll('[data-asset]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.asset === a)));
+    document.querySelectorAll('[data-fees]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.fees === fees())));
+    document.getElementById('lot-def').textContent = a === 'ETH' ? '1 lot = 1 ETH' : '1 lot = 100 oz';
+    const marks = document.querySelectorAll('#report [data-source="report"]');
+    marks.forEach((el) => el.setAttribute('data-where', 'key=' + key));
+    const q = dash.data('report');
+    const take = document.getElementById('takeaway');
+    if (q.status !== 'ok') { if (q.status === 'error') fail(take); return; }
+    const r = q.data.find((x) => x.key === key);
+    if (!r) return;
+    const fmt = {
+      initial_deposit: (x) => money(x), total_net_profit: money, gross_profit: money, gross_loss: money, total_commission: money,
+      expected_payoff: money, balance_dd_absolute: money, balance_dd_maximal: money, final_balance: money,
+      largest_profit: money, largest_loss: money, average_profit: money, average_loss: money,
+      max_consecutive_wins_usd: money, max_consecutive_losses_usd: money, avg_position_usd: money, avg_risk_usd: money,
+      balance_dd_maximal_pct: (x) => f1(x) + '%', short_won_pct: (x) => f1(x) + '%', long_won_pct: (x) => f1(x) + '%',
+      profit_trades_pct: (x) => f1(x) + '%', loss_trades_pct: (x) => f1(x) + '%', avg_stop_distance_pct: (x) => d3.format('.2f')(x) + '%',
+      round_trip_cost_pct: (x) => d3.format('.2f')(x) + '%', profit_factor: (x) => d3.format('.2f')(x),
+      recovery_factor: (x) => d3.format('.2f')(x), sharpe_ratio: (x) => d3.format('.2f')(x),
+      total_trades: int, short_trades: int, long_trades: int, profit_trades: int, loss_trades: int,
+      max_consecutive_wins: int, max_consecutive_losses: int, skipped_trades: int, min_lot_trades: int,
+      avg_lots: (x) => d3.format(a === 'ETH' ? ',.4f' : ',.3f')(x), min_lots: (x) => d3.format(a === 'ETH' ? ',.4f' : ',.3f')(x), max_lots: (x) => d3.format(a === 'ETH' ? ',.4f' : ',.3f')(x),
+    };
+    const signedFields = new Set(['total_net_profit', 'expected_payoff', 'recovery_factor', 'sharpe_ratio']);
+    marks.forEach((el) => {
+      const f = el.dataset.field, raw = r[f];
+      const n = num(raw);
+      el.textContent = fmt[f] && n != null && !isNaN(n) ? fmt[f](n) : raw;
+      if (signedFields.has(f)) tone(el, n);
+      else el.classList.remove('pos', 'neg');
+    });
+    // Takeaway, every figure marked.
+    const mk = (field, text) => { const b = document.createElement('b'); b.dataset.source = 'report'; b.dataset.field = field; b.dataset.where = 'key=' + key; b.textContent = text; return b; };
+    const np = num(r.total_net_profit);
+    take.replaceChildren(
+      `${r.symbol} at ${r.venue.toLowerCase()} fees: `, mk('initial_deposit', '$' + usd(num(r.initial_deposit))), ` became `, mk('final_balance', '$' + usd(num(r.final_balance))),
+      ` over `, mk('total_trades', int(num(r.total_trades))), ` simulated trades, with a worst drop of `,
+      mk('balance_dd_maximal_pct', f1(num(r.balance_dd_maximal_pct)) + '%'), np < 0 ? '. It loses money at these fees.' : '.',
+      num(r.skipped_trades) > 0 ? ` ${int(num(r.skipped_trades))} trades were skipped because the smallest allowed lot would risk more than 2% of the account.` : '');
+  }
+
+  function outDeals() {
+    const q = dash.data('deals');
+    if (q.status !== 'ok') return null;
+    const a = asset(), v = venue();
+    return q.data.filter((d) => d.asset === a && d.venue === v).map((d) => ({ ...d, comment: d.comment || '' }));
+  }
+
+  function drawBalance() {
+    const el = document.getElementById('balance-chart');
+    const q = dash.data('deals');
+    if (q.status === 'error') return fail(el);
+    const rows = outDeals();
+    if (!rows) { el.replaceChildren(); el.classList.add('dash-skeleton'); return; }
+    el.classList.remove('dash-skeleton');
+    const rep = dash.data('report');
+    const rr = rep.status === 'ok' ? rep.data.find((x) => x.key === `${asset()}-${venue()}`) : null;
+    const dep = rr ? num(rr.initial_deposit) : 1000;
+    const pts = [{ n: 0, v: dep, t: 'start' }].concat(rows.filter((d) => d.direction === 'out').map((d) => ({ n: num(d.order), v: num(d.balance), t: d.time })));
+    const W = Math.max(280, el.clientWidth), H = 260;
+    el.replaceChildren();
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    const y = d3.scaleLinear(d3.extent(pts, (p) => p.v), [H - 26, 10]).nice();
+    const probe = svg.append('g').call(d3.axisLeft(y).ticks(5).tickFormat(usd0)).attr('font-size', null).attr('font-family', null);
+    probe.selectAll('text').style('font-size', 'var(--cds-font-size-caption)');
+    const tickW = d3.max(probe.selectAll('text').nodes(), (n) => n.getComputedTextLength()) || 40;
+    probe.remove();
+    const m = { l: tickW + 12, r: 12, t: 10, b: 26 };
+    const x = d3.scaleLinear([0, d3.max(pts, (p) => p.n)], [m.l, W - m.r]);
+    svg.append('g').attr('transform', `translate(${m.l},0)`)
+      .call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)).tickFormat(usd0))
+      .attr('font-size', null).attr('font-family', null)
+      .call((g) => g.select('.domain').remove())
+      .call((g) => g.selectAll('line').attr('stroke', 'var(--cds-chart-grid)'))
+      .call((g) => g.selectAll('text').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)'));
+    svg.append('g').attr('transform', `translate(0,${H - m.b})`)
+      .call(d3.axisBottom(x).ticks(Math.max(2, Math.floor((W - m.l - m.r) / 70))).tickFormat(int).tickSizeOuter(0))
+      .attr('font-size', null).attr('font-family', null)
+      .call((g) => g.select('.domain').attr('stroke', 'var(--cds-chart-axis)'))
+      .call((g) => g.selectAll('line').remove())
+      .call((g) => g.selectAll('text').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)'));
+    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(dep)).attr('y2', y(dep))
+      .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 4');
+    svg.append('path').datum(pts).attr('fill', 'none').attr('stroke', dash.colors[0]).attr('stroke-width', 2)
+      .attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round').attr('d', d3.line().x((p) => x(p.n)).y((p) => y(p.v)));
+    const tip = d3.select(el).append('div').attr('class', 'mt-tip').style('display', 'none');
+    const dot = svg.append('circle').attr('r', 3.5).attr('fill', dash.colors[0]).style('display', 'none');
+    const bis = d3.bisector((p) => p.n).center;
+    svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).attr('fill', 'transparent')
+      .on('mousemove', (ev) => {
+        const [px] = d3.pointer(ev);
+        const p = pts[bis(pts, x.invert(px))];
+        dot.style('display', null).attr('cx', x(p.n)).attr('cy', y(p.v));
+        tip.style('display', null).selectAll('*').remove();
+        tip.append('div').attr('class', 'd').text(p.n ? `Trade ${int(p.n)} · ${p.t}` : 'Initial deposit');
+        tip.append('div').text('Balance ' + usd0(p.v));
+        const box = el.getBoundingClientRect(), tw = tip.node().offsetWidth;
+        tip.style('left', Math.min(Math.max(0, (x(p.n) / W) * box.width + 12), box.width - tw) + 'px').style('top', '8px');
+      })
+      .on('mouseleave', () => { tip.style('display', 'none'); dot.style('display', 'none'); });
+  }
+
+  function drawYearly() {
+    const el = document.getElementById('yearly-chart');
+    const q = dash.data('yearly');
+    if (q.status === 'error') return fail(el);
+    if (q.status !== 'ok') { el.replaceChildren(); el.classList.add('dash-skeleton'); return; }
+    el.classList.remove('dash-skeleton');
+    const rows = q.data.filter((r) => r.asset === asset() && r.venue === venue()).map((r) => ({ year: String(r.year), v: num(r.net_profit), p: num(r.return_pct) }));
+    const W = Math.max(260, el.clientWidth), H = 260, m = { l: 8, r: 8, t: 34, b: 24 };
+    el.replaceChildren();
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    const x = d3.scaleBand(rows.map((r) => r.year), [m.l, W - m.r]).padding(0.3);
+    const lo = Math.min(0, d3.min(rows, (r) => r.v)), hi = Math.max(0, d3.max(rows, (r) => r.v));
+    const y = d3.scaleLinear([lo, hi], [H - m.b - 30, m.t]).nice();
+    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(0)).attr('y2', y(0)).attr('stroke', 'var(--cds-chart-axis)');
+    const bw = Math.min(32, x.bandwidth());
+    const short = (v) => (v < 0 ? '-' : '+') + '$' + d3.format(Math.abs(v) >= 1000 ? '.3~s' : ',.0f')(Math.abs(v)).replace('k', 'K');
+    rows.forEach((r) => {
+      const cx = x(r.year) + x.bandwidth() / 2;
+      svg.append('rect').attr('x', cx - bw / 2).attr('width', bw).attr('y', Math.min(y(r.v), y(0)))
+        .attr('height', Math.max(1, Math.abs(y(r.v) - y(0)))).attr('rx', 4)
+        .attr('fill', r.v >= 0 ? dash.colors[0] : 'var(--cds-chart-status-critical)');
+      const ty = r.v >= 0 ? y(r.v) - 18 : y(r.v) + 14;
+      svg.append('text').attr('x', cx).attr('y', ty).attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', 'var(--color-fg)').text(short(r.v));
+      svg.append('text').attr('x', cx).attr('y', ty + 12).attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', 'var(--color-fg-muted)').text((r.p > 0 ? '+' : '') + f1(r.p) + '%');
+      svg.append('text').attr('x', cx).attr('y', H - 6).attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').text(r.year);
+    });
+  }
+
+  function td(tr, text, cls) { const c = document.createElement('td'); if (cls) c.className = cls; c.textContent = text; tr.append(c); return c; }
+
+  function drawDeals() {
+    const tb = document.querySelector('#deals-table tbody');
+    tb.replaceChildren();
+    const rows = outDeals();
+    if (!rows) return;
+    const a = asset();
+    const term = document.getElementById('deals-search').value.trim().toLowerCase();
+    const mode = document.getElementById('deals-filter').value;
+    // Group in/out pairs by trade so filters keep both legs together.
+    const byOrder = d3.group(rows, (d) => d.order);
+    let orders = Array.from(byOrder.keys());
+    const outOf = (o) => byOrder.get(o).find((d) => d.direction === 'out');
+    if (mode === 'win') orders = orders.filter((o) => num(outOf(o).profit) + 2 * num(outOf(o).commission) > 0);
+    if (mode === 'loss') orders = orders.filter((o) => num(outOf(o).profit) + 2 * num(outOf(o).commission) <= 0);
+    if (mode === 'stop') orders = orders.filter((o) => outOf(o).comment.startsWith('stop loss'));
+    if (mode === 'news') orders = orders.filter((o) => outOf(o).comment.includes('|'));
+    const cpi = (o, tag) => outOf(o).comment.split(';').some((x) => /Inflation Rate (YoY|MoM)/.test(x) && x.includes(tag));
+    if (mode === 'hot') orders = orders.filter((o) => cpi(o, 'beat/hot'));
+    if (mode === 'cool') orders = orders.filter((o) => cpi(o, 'miss/cool'));
+    if (term) orders = orders.filter((o) => byOrder.get(o).some((d) => [d.time, d.type, d.comment].join(' ').toLowerCase().includes(term)));
+    document.getElementById('deals-count').textContent = int(orders.length) + ' trades';
+    document.getElementById('find-count').textContent = term ? `${int(orders.length)} matching trades below (press Enter to jump)` : `${int(byOrder.size)} trades`;
+    const anyNews = rows.some((d) => d.comment.includes('|'));
+    document.getElementById('deals-note').textContent = 'Every simulated deal. Each day was traded bar by bar without seeing later bars. Not real money.' + (anyNews ? '' : ' News for each day is still being imported.');
+    const pf = d3.format(a === 'ETH' ? ',.2f' : ',.2f'), vf = d3.format(a === 'ETH' ? ',.4f' : ',.3f');
+    const frag = document.createDocumentFragment();
+    orders.forEach((o) => {
+      byOrder.get(o).forEach((d) => {
+        const tr = document.createElement('tr'); tr.dataset.key = d.deal_id;
+        if (d.direction === 'out') tr.className = 'out';
+        td(tr, d.time);
+        td(tr, int(num(d.order)), 'num hide-narrow');
+        td(tr, d.symbol, 'hide-narrow');
+        td(tr, d.type, d.type);
+        td(tr, d.direction);
+        td(tr, vf(num(d.volume)), 'num');
+        td(tr, pf(num(d.price)), 'num');
+        td(tr, pf(num(d.sl)), 'num hide-narrow');
+        td(tr, money(num(d.commission)), 'num hide-narrow');
+        const p = td(tr, d.direction === 'out' ? money(num(d.profit)) : '', 'num'); if (d.direction === 'out') tone(p, num(d.profit));
+        td(tr, usd(num(d.balance)), 'num');
+        td(tr, d.comment, 'cmt');
+        frag.append(tr);
+      });
+    });
+    tb.append(frag);
+  }
+
+  function simpleTable(sel, id, filter, cols) {
+    const tb = document.querySelector(sel + ' tbody');
+    tb.replaceChildren();
+    const q = dash.data(id);
+    if (q.status !== 'ok') return;
+    q.data.filter(filter).forEach((r) => {
+      const tr = document.createElement('tr'); tr.dataset.key = r.key;
+      cols.forEach(([f, fn, cls, signed]) => { const c = td(tr, fn(r[f]), cls); if (signed) tone(c, num(r[f])); });
+      tb.append(tr);
+    });
+  }
+  const pct = (v) => (v === '' || v == null ? '—' : (Number(v) > 0 ? '+' : '') + f1(Number(v)) + '%');
+  const plain = (v) => (v === '' || v == null ? '—' : f1(Number(v)) + '%');
+  const bps = (v) => (v === '' || v == null ? '—' : (Number(v) > 0 ? '+' : '') + f1(Number(v)));
+
+  function drawLive() {
+    const st = dash.data('live_status'), tr = dash.data('live_trades');
+    const lv = document.getElementById('live-levels');
+    if (st.status === 'ok' && st.data.length) {
+      const r = st.data[0];
+      document.querySelectorAll('#live [data-source="live_status"]').forEach((el) => {
+        const f = el.dataset.field, n = num(r[f]);
+        el.textContent = ['price', 'balance', 'balance_low_fee'].includes(f) && n != null ? '$' + usd(n) : f === 'trades_closed' ? int(n) : r[f];
+        if (f === 'balance') tone(el, n - num(r.deposit));
+      });
+      lv.replaceChildren();
+      if (r.range_high !== '' && r.range_high != null) {
+        const mk = (field, v) => { const b = document.createElement('b'); b.dataset.source = 'live_status'; b.dataset.field = field; b.textContent = usd(num(v)); return b; };
+        lv.append("Today's range: buy above ", mk('range_high', r.range_high), ', sell below ', mk('range_low', r.range_low));
+      }
+    }
+    const tb = document.querySelector('#live-table tbody');
+    tb.replaceChildren();
+    if (tr.status !== 'ok') return;
+    tr.data.slice().reverse().forEach((r) => {
+      const row = document.createElement('tr'); row.dataset.key = r.trade_id;
+      td(row, r.date);
+      if (r.status === 'skipped') {
+        const c = td(row, 'skipped: ' + (r.note || ''), 'cmt'); c.colSpan = 10;
+      } else {
+        td(row, r.side, r.side === 'LONG' ? 'buy' : 'sell');
+        td(row, r.entry_time, 'hide-narrow');
+        td(row, usd(num(r.entry)), 'num');
+        td(row, usd(num(r.stop)), 'num hide-narrow');
+        td(row, d3.format(',.3f')(num(r.lots)), 'num');
+        td(row, '$' + usd(num(r.risk_usd)), 'num hide-narrow');
+        td(row, usd(num(r.exit)), 'num');
+        td(row, r.status === 'open' ? 'open now' : r.reason);
+        const p = td(row, money(num(r.pnl_usd)), 'num'); tone(p, num(r.pnl_usd));
+        td(row, usd(num(r.balance)), 'num');
+      }
+      tb.append(row);
+    });
+  }
+
+  dash.onData(() => {
+    drawLive();
+    drawReport();
+    drawBalance();
+    drawYearly();
+    drawDeals();
+    const venueName = (v) => v.replace(/ \(.*\)/, '');
+    simpleTable('#stress-table', 'stress', (r) => r.asset === asset(), [
+      ['venue', (v) => venueName(v)], ['median_year_pct', pct, 'num', true], ['bad_year_pct', pct, 'num', true],
+      ['losing_year_chance_pct', plain, 'num'], ['bad_drawdown_pct', plain, 'num'],
+      ['fees_doubled_pct', pct, 'num hide-narrow', true], ['without_best10_pct', pct, 'num hide-narrow', true]]);
+    simpleTable('#lessons-table', 'lessons', (r) => r.asset === asset(), [
+      ['group', (v) => v], ['trades', (v) => (v === '' ? '—' : int(Number(v))), 'num'],
+      ['avg_net_bps', bps, 'num', true], ['win_pct', (v) => (v === '' ? '—' : f1(Number(v)) + '%'), 'num']]);
+  });
+})();
+</script>
+
+</div>
+<p class="site-foot">Simulated trading for research. No real money, no orders placed, not financial advice.
+Updated 2026-10-23 22:13 UTC.</p>
+</body>
+</html>
