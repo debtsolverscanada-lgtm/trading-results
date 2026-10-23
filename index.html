@@ -3,14 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Paper Trading Desk</title>
+<title>ETH Trading Robot</title>
 <meta name="description" content="Simulated ETH and gold breakout trading: live simulation, strategy report and every simulated deal. No real money.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --font-anthropic-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --k-fun-font: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-anthropic-sans: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
     --font-anthropic-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
     --color-bg: #f6f7f9; --color-panel: #ffffff; --color-fg: #16202b; --color-fg-muted: #5b6876;
     --color-border-line: #dde2e8; --color-ok: #127a4b; --color-bad: #b42318; --color-warn: #a15c00;
@@ -37,7 +38,7 @@
     }
   }
   html, body { margin: 0; background: var(--color-bg); color: var(--color-fg); font-family: var(--font-anthropic-sans); font-size: var(--cds-font-size-body); }
-  #dash-root { max-width: 1280px; margin: 0 auto; padding-block: 24px 48px;
+  #dash-root { max-width: 1100px; margin: 0 auto; padding-block: 24px 48px;
     padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
   .dash-skeleton { color: transparent !important; background: var(--color-border-line); border-radius: 4px; min-height: 1em; }
   .site-foot { max-width: 1280px; margin: 0 auto 32px; padding: 0 16px; color: var(--color-fg-muted); font-size: 12.5px; }
@@ -54,7 +55,7 @@
   const run = () => subs.forEach((fn) => { try { fn(); } catch (e) { console.error(e); } });
   ids.forEach((id) => {
     store[id] = { status: 'loading', data: [], columns: [] };
-    d3.csv(`data/${id}.csv?v=2026-10-23T22:13`).then((rows) => {
+    d3.csv(`data/${id}.csv?v=2026-10-23T22:23`).then((rows) => {
       store[id] = { status: 'ok', data: rows, columns: rows.columns || [] };
       run();
     }).catch((e) => { store[id] = { status: 'error', data: [], message: String(e) }; run(); });
@@ -75,380 +76,534 @@
 <body>
 <div id="dash-root">
 <style>
-  /* Layout: MT5 Strategy Tester report. Settings + switches, a dense label/value results grid,
-     balance graph by trade number, yearly profit, deals history, then stress test and patterns. */
-  .mt { display: grid; gap: var(--cds-gap-lg); font-family: var(--font-anthropic-sans); font-variant-numeric: tabular-nums; }
-  .mt-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: var(--cds-gap-md); }
-  .mt-head > div { flex: 1 1 22rem; min-width: 0; }
-  .mt h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
-  .mt-sub { margin: var(--cds-gap-xs) 0 0; color: var(--color-fg-muted); max-width: 72ch; }
-  .mt-sub b { color: var(--color-fg); font-weight: 600; }
-  .mt-switches { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); }
-  .mt-seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; }
-  .mt-seg button { font: inherit; font-size: var(--cds-font-size-caption); padding: var(--cds-pad-xs) var(--cds-pad-md); border: 0; background: var(--color-panel); color: var(--color-fg-muted); cursor: pointer; }
-  .mt-seg button[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); }
-  .mt-seg button:focus-visible { outline: 2px solid var(--color-fg); outline-offset: -2px; }
-  .mt-find { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cds-gap-sm); background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-sm) var(--cds-pad-md); }
-  .mt-find label { font-weight: 600; font-size: var(--cds-font-size-caption); }
-  .mt-find input { flex: 1 1 16rem; min-width: 0; font: inherit; padding: var(--cds-pad-xs) var(--cds-pad-sm); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); }
-  .mt-live { display: grid; gap: var(--cds-gap-md); }
-  .mt-live-top { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: var(--cds-gap-md); }
-  .mt-stat { display: grid; gap: 2px; }
-  .mt-stat .lab { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
-  .mt-stat .big { font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-title); line-height: 1.15; }
-  .mt-state { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
-  .mt-state::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: var(--color-ok); }
-  .mt-levels { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
-  .mt-levels b { color: var(--color-fg); font-weight: 600; }
-  .mt-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); min-width: 0; display: grid; gap: var(--cds-gap-sm); align-content: start; }
-  .mt-card h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
-  .mt-note { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: 0; }
-  .mt-report { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: var(--cds-gap-md) var(--cds-gap-xl); }
-  .mt-group h3 { font-size: var(--cds-font-size-caption); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--color-fg-muted); margin: 0 0 4px; }
-  .mt-kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; font-size: var(--cds-font-size-caption); }
-  .mt-kv > span { padding: 5px 0; border-bottom: 1px solid var(--color-border-line); }
-  .mt-kv > span:nth-child(odd) { color: var(--color-fg-muted); padding-right: var(--cds-gap-sm); }
-  .mt-kv > span:nth-child(even) { text-align: right; white-space: nowrap; }
-  .mt-kv .key { color: var(--color-fg); font-weight: 600; }
-  .mt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: var(--cds-gap-md); }
-  .mt-chart { position: relative; min-height: 260px; }
-  .mt-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; }
-  .mt-tip .d { color: var(--cds-text-secondary); }
-  .mt-tools { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: center; }
-  .mt-tools input, .mt-tools select { font: inherit; font-size: var(--cds-font-size-caption); padding: var(--cds-pad-xs) var(--cds-pad-sm); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); min-width: 0; }
-  .mt-tools input { flex: 1 1 14rem; }
-  .mt-scroll { overflow: auto; max-height: 36rem; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); }
-  .mt-scroll.flat { max-height: none; border: 0; }
-  .mt table { border-collapse: collapse; width: 100%; font-size: var(--cds-font-size-caption); }
-  .mt th, .mt td { text-align: left; padding: 4px 8px; white-space: nowrap; }
-  .mt th { position: sticky; top: 0; background: var(--color-panel); color: var(--color-fg-muted); font-weight: 600; border-bottom: 1px solid var(--color-border-line); z-index: 1; }
-  .mt th.num, .mt td.num { text-align: right; }
-  .mt tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--color-fg) 3%, transparent); }
-  .mt tbody tr.out td { border-bottom: 1px solid var(--color-border-line); }
-  .mt td.cmt { white-space: normal; min-width: 18rem; color: var(--color-fg-muted); }
-  .mt td.buy { color: var(--color-ok); }
-  .mt td.sell { color: var(--color-bad); }
+  /* Layout: one friendly column. Hero with robot -> "Right now" (sky) -> trade cards (win/loss) ->
+     6-year test (sunny) -> expert details folded away. Plain words, big numbers, green = made money, red = lost. */
+  .k {
+    --k-font: var(--k-fun-font, var(--font-anthropic-sans));
+    --k-sky: color-mix(in srgb, #2f8fe0 13%, var(--color-panel));
+    --k-sky-edge: color-mix(in srgb, #2f8fe0 35%, var(--color-border-line));
+    --k-sun: color-mix(in srgb, #f2b316 16%, var(--color-panel));
+    --k-sun-edge: color-mix(in srgb, #f2b316 40%, var(--color-border-line));
+    --k-win: color-mix(in srgb, var(--color-ok) 10%, var(--color-panel));
+    --k-loss: color-mix(in srgb, var(--color-bad) 9%, var(--color-panel));
+    --k-robot: #2f8fe0;
+    display: grid; gap: 36px; font-family: var(--font-anthropic-sans); font-variant-numeric: tabular-nums;
+    max-width: 1040px; margin-inline: auto;
+  }
+  .k h1, .k h2, .k .k-result, .k .big { font-family: var(--k-font); }
+  .k h1 { font-weight: 700; font-size: 2.3rem; line-height: 1.1; margin: 0; letter-spacing: -.01em; }
+  .k h2 { font-size: 1.45rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 10px; }
+  .k p { margin: 0; line-height: 1.55; }
+  .k b { font-weight: 700; }
   .pos { color: var(--color-ok); }
   .neg { color: var(--color-bad); }
-  .mt-fail { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: inherit; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
-  .mt-fail::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+  .k-sec { display: grid; gap: 14px; }
+  .k-sub { color: var(--color-fg-muted); max-width: 66ch; font-size: 1.02rem; }
+  .k-sub b { color: var(--color-fg); }
+  .k-box { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: 18px; padding: 22px; min-width: 0; }
+  .k-num-dot { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; font-size: .95rem; color: #fff; flex: none; }
+
+  /* Hero */
+  .k-hero { display: flex; flex-wrap: wrap; align-items: center; gap: 22px; padding: 24px; border-radius: 22px;
+    background: var(--k-sky); border: 1px solid var(--k-sky-edge); }
+  .k-hero > div { flex: 1 1 22rem; min-width: 0; display: grid; gap: 8px; }
+  .k-hero p { font-size: 1.1rem; color: var(--color-fg-muted); max-width: 56ch; }
+  .k-hero p b { color: var(--color-fg); }
+  .k-robot { width: 112px; height: 112px; flex: none; }
+  .k-robot .eye { animation: k-blink 5s infinite; transform-origin: center; transform-box: fill-box; }
+  @keyframes k-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+
+  /* Right now */
+  .k-now { display: grid; gap: 18px; background: var(--k-sky); border-color: var(--k-sky-edge); }
+  .k-now-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .k-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; font-weight: 700;
+    background: var(--color-panel); border: 1px solid var(--k-sky-edge); }
+  .k-pill::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--color-ok); animation: k-pulse 2s infinite; }
+  @keyframes k-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-ok) 50%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+  .k-time { color: var(--color-fg-muted); font-size: .92rem; }
+  .k-say { font-size: 1.3rem; line-height: 1.5; max-width: 58ch; }
+  .k-nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 12px; }
+  .k-num { display: grid; gap: 4px; padding: 16px; border-radius: 14px; background: var(--color-panel); border: 1px solid var(--color-border-line); align-content: start; }
+  .k-num .lab { color: var(--color-fg-muted); font-size: .92rem; font-weight: 600; }
+  .k-num .big { font-size: 2rem; line-height: 1.1; font-weight: 700; }
+  .k-num .small { color: var(--color-fg-muted); font-size: .88rem; }
+  .k-dots { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+  .k-dots i { width: 14px; height: 14px; border-radius: 50%; display: block; }
+  .k-dots i.w { background: var(--color-ok); }
+  .k-dots i.l { background: var(--color-bad); }
+  .k-meter { display: grid; gap: 6px; }
+  .k-meter[hidden] { display: none; }
+  .k-meter-bar { height: 12px; border-radius: 999px; background: var(--color-bg); overflow: hidden; border: 1px solid var(--color-border-line); }
+  .k-meter-bar span { display: block; height: 100%; border-radius: 999px; background: var(--color-ok); }
+
+  /* Trade cards */
+  .k-trades { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: 14px; }
+  .k-trade { display: grid; gap: 10px; align-content: start; }
+  .k-trade.win { background: var(--k-win); }
+  .k-trade.loss { background: var(--k-loss); }
+  .k-trade.open { border: 2px solid var(--color-ok); }
+  .k-trade-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .k-date { font-weight: 700; }
+  .k-badge { display: inline-block; margin-top: 4px; font-size: .8rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; color: #fff; }
+  .k-badge.win { background: var(--color-ok); }
+  .k-badge.loss { background: var(--color-bad); }
+  .k-badge.open { background: var(--k-robot); }
+  .k-result { font-size: 1.9rem; line-height: 1; font-weight: 700; }
+  .k-what { color: var(--color-fg-muted); }
+  .k-what b { color: var(--color-fg); }
+  .k-spark { width: 100%; height: 70px; display: block; background: var(--color-panel); border-radius: 10px; }
+  .k-facts { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; font-size: .9rem; color: var(--color-fg-muted); }
+  .k-facts span:nth-child(even) { text-align: right; color: var(--color-fg); font-weight: 600; }
+  .k-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .88rem; color: var(--color-fg-muted); }
+  .k-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .k-legend i { width: 22px; height: 0; border-top: 2px solid; display: inline-block; }
+
+  /* Test */
+  .k-test { background: var(--k-sun); border: 1px solid var(--k-sun-edge); border-radius: 22px; padding: 22px; display: grid; gap: 16px; }
+  .k-switches { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .k-seg { display: inline-flex; border: 1px solid var(--k-sun-edge); border-radius: 999px; overflow: hidden; background: var(--color-panel); }
+  .k-seg button { font: inherit; font-weight: 600; padding: 8px 18px; border: 0; background: none; color: var(--color-fg-muted); cursor: pointer; }
+  .k-seg button[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); }
+  .k-seg button:focus-visible, .k summary:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+  .k-chart { position: relative; min-height: 260px; }
+  .k-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: 10px; box-shadow: var(--cds-shadow-popover); padding: 6px 10px; font-size: .88rem; white-space: nowrap; }
+  .k-tip .d { color: var(--cds-text-secondary); }
+
+  /* Expert details */
+  .k details { border-top: 2px dashed var(--color-border-line); padding-top: 18px; }
+  .k summary { cursor: pointer; font-family: var(--k-font); font-weight: 700; font-size: 1.15rem; list-style: none; display: flex; align-items: center; gap: 10px; }
+  .k summary::-webkit-details-marker { display: none; }
+  .k summary::before { content: "+"; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--color-fg); color: var(--color-bg); font-weight: 700; }
+  .k details[open] summary::before { content: "–"; }
+  .k-x { display: grid; gap: 18px; margin-top: 18px; }
+  .k-report { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 12px 28px; }
+  .k-kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; font-size: .88rem; }
+  .k-kv > span { padding: 5px 0; border-bottom: 1px solid var(--color-border-line); }
+  .k-kv > span:nth-child(odd) { color: var(--color-fg-muted); padding-right: 10px; }
+  .k-kv > span:nth-child(even) { text-align: right; white-space: nowrap; }
+  .k-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .k-tools input, .k-tools select { font: inherit; padding: 8px 12px; border: 1px solid var(--color-border-line); border-radius: 10px; background: var(--color-bg); color: var(--color-fg); min-width: 0; }
+  .k-tools input { flex: 1 1 14rem; }
+  .k-scroll { overflow: auto; max-height: 34rem; border: 1px solid var(--color-border-line); border-radius: 12px; }
+  .k-scroll.flat { max-height: none; }
+  .k table { border-collapse: collapse; width: 100%; font-size: .86rem; }
+  .k th, .k td { text-align: left; padding: 6px 10px; white-space: nowrap; }
+  .k th { position: sticky; top: 0; background: var(--color-panel); color: var(--color-fg-muted); font-weight: 700; border-bottom: 1px solid var(--color-border-line); }
+  .k th.num, .k td.num { text-align: right; }
+  .k tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--color-fg) 3%, transparent); }
+  .k td.cmt { white-space: normal; min-width: 18rem; color: var(--color-fg-muted); }
+  .k-fail { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: inherit; color: var(--color-fg-muted); font-size: .85rem; }
+  .k-fail::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
   [data-dash-source-state=empty] { color: transparent; }
   [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
-  @media (max-width: 40rem) { .mt .hide-narrow { display: none; } }
+  @media (prefers-reduced-motion: no-preference) {
+    .k-trade { animation: k-pop .45s var(--cds-ease-out, ease-out) both; }
+    @keyframes k-pop { from { transform: translateY(6px) scale(.98); } to { transform: none; } }
+  }
+  @media (prefers-reduced-motion: reduce) { .k-robot .eye, .k-pill::before { animation: none; } }
+  @media (max-width: 40rem) { .k .hide-narrow { display: none; } .k h1 { font-size: 1.8rem; } .k-say { font-size: 1.12rem; } .k-robot { width: 80px; height: 80px; } }
 </style>
 
-<div class="mt">
-  <header class="mt-head" id="top">
+<div class="k">
+  <header class="k-hero" id="top">
+    <svg class="k-robot" viewBox="0 0 120 120" role="img" aria-label="Robot trader">
+      <line x1="60" y1="8" x2="60" y2="22" stroke="var(--color-fg)" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="60" cy="8" r="6" fill="#f2b316"/>
+      <rect x="18" y="22" width="84" height="66" rx="20" fill="var(--k-robot)"/>
+      <rect x="30" y="36" width="60" height="34" rx="12" fill="var(--color-panel)"/>
+      <ellipse class="eye" cx="46" cy="52" rx="6" ry="7" fill="var(--color-fg)"/>
+      <ellipse class="eye" cx="74" cy="52" rx="6" ry="7" fill="var(--color-fg)"/>
+      <path d="M48 62 Q60 70 72 62" fill="none" stroke="var(--color-fg)" stroke-width="3" stroke-linecap="round"/>
+      <rect x="34" y="92" width="52" height="20" rx="8" fill="var(--k-robot)" opacity=".8"/>
+      <polyline points="40,106 50,100 58,104 70,96 80,99" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="6" y="46" width="12" height="22" rx="6" fill="var(--k-robot)" opacity=".8"/>
+      <rect x="102" y="46" width="12" height="22" rx="6" fill="var(--k-robot)" opacity=".8"/>
+    </svg>
     <div>
-      <h1>Paper Trading Desk</h1>
-      <p class="mt-sub" id="takeaway"><span class="dash-skeleton">—</span></p>
-    </div>
-    <div class="mt-switches">
-      <div class="mt-seg" role="group" aria-label="Symbol">
-        <button type="button" data-asset="ETH" id="sym-eth">ETHUSD</button>
-        <button type="button" data-asset="XAUUSD" id="sym-gold">XAUUSD</button>
-      </div>
-      <div class="mt-seg" role="group" aria-label="Fees">
-        <button type="button" data-fees="low" id="fees-low">Low fees</button>
-        <button type="button" data-fees="liquid" id="fees-liquid">Liquid fees</button>
-      </div>
+      <h1>Meet the ETH trading robot</h1>
+      <p>It practices trading ETH (a cryptocurrency) with <b>pretend money</b>, following one simple rule every day. You can watch every trade here. <b>No real money is used.</b></p>
     </div>
   </header>
 
-  <section class="mt-card mt-live" id="live">
-    <h2>Live simulation</h2>
-    <p class="mt-note">A $1,000 simulated account trading real ETH prices since <span data-source="live_status" data-field="start_date">—</span>, the first day after the research data. Liquid fees. No real money, no orders placed.</p>
-    <div class="mt-live-top">
-      <div class="mt-stat"><span class="lab">Right now (<span data-source="live_status" data-field="as_of">—</span>)</span><span class="mt-state" data-source="live_status" data-field="state">—</span><span class="mt-levels" id="live-levels"></span></div>
-      <div class="mt-stat"><span class="lab">ETH price</span><span class="big" data-source="live_status" data-field="price">—</span></div>
-      <div class="mt-stat"><span class="lab">Balance (Liquid fees)</span><span class="big" data-source="live_status" data-field="balance">—</span><span class="mt-levels">At low fees: <span data-source="live_status" data-field="balance_low_fee">—</span></span></div>
-      <div class="mt-stat"><span class="lab">Closed trades</span><span class="big" data-source="live_status" data-field="trades_closed">—</span><span class="mt-levels">Next: <span data-source="live_status" data-field="next_events">—</span></span></div>
-    </div>
-    <div class="mt-scroll flat">
-      <table id="live-table" data-source="live_trades" data-row-key="trade_id">
-        <thead><tr>
-          <th data-field="date">Date</th>
-          <th data-field="side">Side</th>
-          <th class="hide-narrow" data-field="entry_time">In (UTC)</th>
-          <th class="num" data-field="entry">Entry</th>
-          <th class="num hide-narrow" data-field="stop">Stop</th>
-          <th class="num" data-field="lots">Lots</th>
-          <th class="num hide-narrow" data-field="risk_usd">Risk</th>
-          <th class="num" data-field="exit">Exit</th>
-          <th data-field="reason">Why</th>
-          <th class="num" data-field="pnl_usd">Profit</th>
-          <th class="num" data-field="balance">Balance</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </section>
-
-  <div class="mt-find" id="find">
-    <label for="find-input">Find trades</label>
-    <input id="find-input" type="search" placeholder="Try: CPI, payrolls, stop loss, 2024-08, hot, sell" aria-label="Find trades">
-    <span class="mt-note" id="find-count"></span>
-  </div>
-
-  <section class="mt-card" id="report">
-    <h2>Strategy tester report</h2>
-    <div class="mt-report">
-      <div class="mt-group">
-        <h3>Settings</h3>
-        <div class="mt-kv">
-          <span>Expert</span><span>Asia range breakout</span>
-          <span>Symbol</span><span data-source="report" data-field="symbol">—</span>
-          <span>Period</span><span><span data-source="report" data-field="period">—</span> (<span data-source="report" data-field="from">—</span> to <span data-source="report" data-field="to">—</span>)</span>
-          <span>Fees</span><span><span data-source="report" data-field="venue">—</span>, <span data-source="report" data-field="round_trip_cost_pct">—</span> round trip</span>
-          <span>Initial deposit</span><span data-source="report" data-field="initial_deposit">—</span>
-          <span>Risk per trade</span><span>0.5% of balance at the stop</span>
-          <span>Skipped (min lot too risky)</span><span data-source="report" data-field="skipped_trades">—</span>
-          <span>Raised to min lot</span><span data-source="report" data-field="min_lot_trades">—</span>
-        </div>
+  <!-- 1. Right now -->
+  <section class="k-sec" id="now">
+    <h2><span class="k-num-dot" style="background:var(--k-robot)">1</span>What is the robot doing right now?</h2>
+    <div class="k-box k-now">
+      <div class="k-now-head">
+        <span class="k-pill" id="now-pill" data-source="live_status" data-field="state">—</span>
+        <span class="k-time">Last checked <span data-source="live_status" data-field="as_of">—</span></span>
       </div>
-      <div class="mt-group">
-        <h3>Results</h3>
-        <div class="mt-kv">
-          <span class="key">Total net profit</span><span class="key" data-source="report" data-field="total_net_profit">—</span>
-          <span>Gross profit</span><span data-source="report" data-field="gross_profit">—</span>
-          <span>Gross loss</span><span data-source="report" data-field="gross_loss">—</span>
-          <span>Total commission</span><span data-source="report" data-field="total_commission">—</span>
-          <span>Profit factor</span><span data-source="report" data-field="profit_factor">—</span>
-          <span>Expected payoff</span><span data-source="report" data-field="expected_payoff">—</span>
-          <span>Recovery factor</span><span data-source="report" data-field="recovery_factor">—</span>
-          <span>Sharpe ratio</span><span data-source="report" data-field="sharpe_ratio">—</span>
-          <span>Balance drawdown absolute</span><span data-source="report" data-field="balance_dd_absolute">—</span>
-          <span>Balance drawdown maximal</span><span><span data-source="report" data-field="balance_dd_maximal">—</span> (<span data-source="report" data-field="balance_dd_maximal_pct">—</span>)</span>
-          <span class="key">Final balance</span><span class="key" data-source="report" data-field="final_balance">—</span>
-        </div>
+      <p class="k-say" id="now-say"><span class="dash-skeleton">—</span></p>
+      <div class="k-meter" id="now-meter" hidden>
+        <span class="k-time" id="now-meter-label"></span>
+        <div class="k-meter-bar"><span id="now-meter-fill" style="width:0"></span></div>
       </div>
-      <div class="mt-group">
-        <h3>Trades</h3>
-        <div class="mt-kv">
-          <span>Total trades</span><span data-source="report" data-field="total_trades">—</span>
-          <span>Short trades (won %)</span><span><span data-source="report" data-field="short_trades">—</span> (<span data-source="report" data-field="short_won_pct">—</span>)</span>
-          <span>Long trades (won %)</span><span><span data-source="report" data-field="long_trades">—</span> (<span data-source="report" data-field="long_won_pct">—</span>)</span>
-          <span>Profit trades (% of total)</span><span><span data-source="report" data-field="profit_trades">—</span> (<span data-source="report" data-field="profit_trades_pct">—</span>)</span>
-          <span>Loss trades (% of total)</span><span><span data-source="report" data-field="loss_trades">—</span> (<span data-source="report" data-field="loss_trades_pct">—</span>)</span>
-          <span>Largest profit trade</span><span data-source="report" data-field="largest_profit">—</span>
-          <span>Largest loss trade</span><span data-source="report" data-field="largest_loss">—</span>
-          <span>Average profit trade</span><span data-source="report" data-field="average_profit">—</span>
-          <span>Average loss trade</span><span data-source="report" data-field="average_loss">—</span>
-          <span>Max consecutive wins ($)</span><span><span data-source="report" data-field="max_consecutive_wins">—</span> (<span data-source="report" data-field="max_consecutive_wins_usd">—</span>)</span>
-          <span>Max consecutive losses ($)</span><span><span data-source="report" data-field="max_consecutive_losses">—</span> (<span data-source="report" data-field="max_consecutive_losses_usd">—</span>)</span>
-        </div>
-      </div>
-      <div class="mt-group">
-        <h3>Position size</h3>
-        <div class="mt-kv">
-          <span>Average volume</span><span><span data-source="report" data-field="avg_lots">—</span> lots</span>
-          <span>Smallest volume</span><span><span data-source="report" data-field="min_lots">—</span> lots</span>
-          <span>Largest volume</span><span><span data-source="report" data-field="max_lots">—</span> lots</span>
-          <span>Average position value</span><span data-source="report" data-field="avg_position_usd">—</span>
-          <span>Average risk to stop</span><span data-source="report" data-field="avg_risk_usd">—</span>
-          <span>Average stop distance</span><span data-source="report" data-field="avg_stop_distance_pct">—</span>
-          <span>Lot size</span><span id="lot-def">—</span>
-        </div>
+      <div class="k-nums">
+        <div class="k-num"><span class="lab">ETH price</span><span class="big" data-source="live_status" data-field="price">—</span></div>
+        <div class="k-num"><span class="lab">Pretend money</span><span class="big" data-source="live_status" data-field="balance">—</span><span class="small">Started with <span data-source="live_status" data-field="deposit">—</span> on <span data-source="live_status" data-field="start_date">—</span></span></div>
+        <div class="k-num"><span class="lab">Scoreboard</span><span class="big" id="now-wl">—</span><div class="k-dots" id="now-dots" aria-hidden="true"></div></div>
+        <div class="k-num"><span class="lab">Next big news day</span><span class="small" style="font-size:1rem;color:var(--color-fg);font-weight:600" data-source="live_status" data-field="next_events">—</span><span class="small">The robot stays out of trades around big news.</span></div>
       </div>
     </div>
   </section>
 
-  <div class="mt-grid">
-    <section class="mt-card" id="balance-card">
-      <h2>Balance</h2>
-      <p class="mt-note">Account balance after each trade, by trade number. Dashed line is the starting deposit.</p>
-      <div class="mt-chart" id="balance-chart" data-source="deals"></div>
-    </section>
-    <section class="mt-card" id="yearly-card">
-      <h2>Net profit by year</h2>
-      <p class="mt-note">Dollars made or lost each calendar year; percent of the balance at the start of that year.</p>
-      <div class="mt-chart" id="yearly-chart" data-source="yearly"></div>
-    </section>
-  </div>
-
-  <section class="mt-card" id="deals-card">
-    <h2>Deals</h2>
-    <p class="mt-note" id="deals-note">Every simulated deal. Each day was traded bar by bar without seeing later bars. Not real money.</p>
-    <div class="mt-tools">
-      <input id="deals-search" type="search" placeholder="Search date, type, comment or news" aria-label="Search deals">
-      <select id="deals-filter" aria-label="Show">
-        <option value="all">All trades</option>
-        <option value="win">Winning trades</option>
-        <option value="loss">Losing trades</option>
-        <option value="stop">Stopped out</option>
-        <option value="news">News days</option>
-        <option value="hot">Hot CPI days</option>
-        <option value="cool">Cool CPI days</option>
-      </select>
-      <span class="mt-note" id="deals-count"></span>
+  <!-- 2. Live trades -->
+  <section class="k-sec" id="live">
+    <h2><span class="k-num-dot" style="background:var(--color-ok)">2</span>Every trade so far</h2>
+    <p class="k-sub">Newest first. Each little chart shows ETH's price from the moment the robot got in until it got out.</p>
+    <div class="k-legend" aria-hidden="true">
+      <span><i style="border-color:var(--cds-chart-reference)"></i>Price it got in at</span>
+      <span><i style="border-color:var(--color-bad);border-top-style:dashed"></i>Safety stop: if the price touches it, the robot gets out so the loss stays small</span>
     </div>
-    <div class="mt-scroll">
-      <table id="deals-table" data-source="deals" data-row-key="deal_id">
-        <thead><tr>
-          <th data-field="time">Time (UTC)</th>
-          <th class="num hide-narrow" data-field="order">Deal</th>
-          <th class="hide-narrow" data-field="symbol">Symbol</th>
-          <th data-field="type">Type</th>
-          <th data-field="direction">Direction</th>
-          <th class="num" data-field="volume">Volume</th>
-          <th class="num" data-field="price">Price</th>
-          <th class="num hide-narrow" data-field="sl">S/L</th>
-          <th class="num hide-narrow" data-field="commission">Commission</th>
-          <th class="num" data-field="profit">Profit</th>
-          <th class="num" data-field="balance">Balance</th>
-          <th data-field="comment">Comment</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
+    <div class="k-trades" id="live-cards" data-source="live_trades"></div>
+  </section>
+
+  <!-- 3. The 6-year test -->
+  <section class="k-sec" id="test">
+    <h2><span class="k-num-dot" style="background:#e3a008">3</span>How did the rule do in a 6-year test?</h2>
+    <div class="k-test">
+      <p class="k-sub">Before trading live, the robot practiced on every day from 2020 to 2026, and it was not allowed to peek at the future. Pick a coin and a fee level:</p>
+      <div class="k-switches">
+        <div class="k-seg" role="group" aria-label="Coin">
+          <button type="button" data-asset="ETH">ETH</button>
+          <button type="button" data-asset="XAUUSD">Gold</button>
+        </div>
+        <div class="k-seg" role="group" aria-label="Fees">
+          <button type="button" data-fees="low">Cheap fees</button>
+          <button type="button" data-fees="liquid">Liquid fees</button>
+        </div>
+      </div>
+      <div class="k-nums" id="test-nums">
+        <div class="k-num"><span class="lab">Started with</span><span class="big" data-source="report" data-field="initial_deposit">—</span></div>
+        <div class="k-num"><span class="lab">Ended with</span><span class="big" data-source="report" data-field="final_balance">—</span></div>
+        <div class="k-num"><span class="lab">Trades that made money</span><span class="big" data-source="report" data-field="profit_trades_pct">—</span><span class="small">Less than half, but the wins were bigger than the losses.</span></div>
+        <div class="k-num"><span class="lab">Biggest drop along the way</span><span class="big" data-source="report" data-field="balance_dd_maximal_pct">—</span><span class="small">From its highest point.</span></div>
+      </div>
+      <div class="k-box">
+        <p class="k-sub" style="margin-bottom:8px">Pretend money after each test trade. The dashed line is where it started.</p>
+        <div class="k-chart" id="balance-chart" data-source="deals"></div>
+      </div>
+      <p class="k-sub" id="test-say"></p>
     </div>
   </section>
 
-  <div class="mt-grid">
-    <section class="mt-card" id="stress-card">
-      <h2>Stress test: 1,000 simulated years</h2>
-      <p class="mt-note">Real trades reshuffled into 1,000 alternative years, plus fee and slippage shocks. Both fee levels.</p>
-      <div class="mt-scroll flat">
-        <table id="stress-table" data-source="stress" data-row-key="key">
-          <thead><tr>
-            <th data-field="venue">Fees</th>
-            <th class="num" data-field="median_year_pct">Median year</th>
-            <th class="num" data-field="bad_year_pct">Bad year (5%)</th>
-            <th class="num" data-field="losing_year_chance_pct">Losing-year chance</th>
-            <th class="num" data-field="bad_drawdown_pct">Bad drawdown</th>
-            <th class="num hide-narrow" data-field="fees_doubled_pct">Fees doubled</th>
-            <th class="num hide-narrow" data-field="without_best10_pct">Without best 10</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
+  <!-- 4. Expert details -->
+  <details id="details">
+    <summary>Details for experts</summary>
+    <div class="k-x">
+      <section class="k-box" id="report">
+        <h2 style="font-size:1.05rem;margin-bottom:10px">Strategy tester report (MT5 style)</h2>
+        <div class="k-report">
+          <div class="k-kv">
+            <span>Expert</span><span>Asia range breakout</span>
+            <span>Symbol</span><span data-source="report" data-field="symbol">—</span>
+            <span>Period</span><span><span data-source="report" data-field="period">—</span> <span data-source="report" data-field="from">—</span> to <span data-source="report" data-field="to">—</span></span>
+            <span>Fees</span><span><span data-source="report" data-field="venue">—</span>, <span data-source="report" data-field="round_trip_cost_pct">—</span> per trade</span>
+            <span>Risk per trade</span><span>0.5% of balance</span>
+            <span>Skipped (min lot too big)</span><span data-source="report" data-field="skipped_trades">—</span>
+          </div>
+          <div class="k-kv">
+            <span>Total net profit</span><span data-source="report" data-field="total_net_profit">—</span>
+            <span>Gross profit</span><span data-source="report" data-field="gross_profit">—</span>
+            <span>Gross loss</span><span data-source="report" data-field="gross_loss">—</span>
+            <span>Total commission</span><span data-source="report" data-field="total_commission">—</span>
+            <span>Profit factor</span><span data-source="report" data-field="profit_factor">—</span>
+            <span>Expected payoff</span><span data-source="report" data-field="expected_payoff">—</span>
+            <span>Recovery factor</span><span data-source="report" data-field="recovery_factor">—</span>
+            <span>Sharpe ratio</span><span data-source="report" data-field="sharpe_ratio">—</span>
+            <span>Max drawdown</span><span data-source="report" data-field="balance_dd_maximal">—</span>
+          </div>
+          <div class="k-kv">
+            <span>Total trades</span><span data-source="report" data-field="total_trades">—</span>
+            <span>Short won %</span><span data-source="report" data-field="short_won_pct">—</span>
+            <span>Long won %</span><span data-source="report" data-field="long_won_pct">—</span>
+            <span>Largest win</span><span data-source="report" data-field="largest_profit">—</span>
+            <span>Largest loss</span><span data-source="report" data-field="largest_loss">—</span>
+            <span>Average win</span><span data-source="report" data-field="average_profit">—</span>
+            <span>Average loss</span><span data-source="report" data-field="average_loss">—</span>
+            <span>Max losing streak</span><span><span data-source="report" data-field="max_consecutive_losses">—</span> trades</span>
+          </div>
+          <div class="k-kv">
+            <span>Average volume</span><span><span data-source="report" data-field="avg_lots">—</span> lots</span>
+            <span>Largest volume</span><span><span data-source="report" data-field="max_lots">—</span> lots</span>
+            <span>Average position</span><span data-source="report" data-field="avg_position_usd">—</span>
+            <span>Average risk</span><span data-source="report" data-field="avg_risk_usd">—</span>
+            <span>Lot size</span><span id="lot-def">—</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="k-box" id="yearly-card">
+        <h2 style="font-size:1.05rem">Profit by year</h2>
+        <div class="k-chart" id="yearly-chart" data-source="yearly"></div>
+      </section>
+
+      <section class="k-box" id="deals-card">
+        <h2 style="font-size:1.05rem;margin-bottom:10px">All test deals</h2>
+        <div class="k-tools">
+          <input id="deals-search" type="search" placeholder="Search: CPI, payrolls, stop loss, 2024-08, sell" aria-label="Search deals">
+          <select id="deals-filter" aria-label="Show">
+            <option value="all">All trades</option>
+            <option value="win">Winners</option>
+            <option value="loss">Losers</option>
+            <option value="stop">Hit the safety stop</option>
+            <option value="news">News days</option>
+          </select>
+          <span class="k-time" id="deals-count"></span>
+        </div>
+        <div class="k-scroll" style="margin-top:10px">
+          <table id="deals-table" data-source="deals" data-row-key="deal_id">
+            <thead><tr>
+              <th data-field="time">Time (UTC)</th>
+              <th data-field="type">Type</th>
+              <th data-field="direction">In/out</th>
+              <th class="num" data-field="volume">Lots</th>
+              <th class="num" data-field="price">Price</th>
+              <th class="num hide-narrow" data-field="sl">Stop</th>
+              <th class="num" data-field="profit">Profit</th>
+              <th class="num" data-field="balance">Balance</th>
+              <th data-field="comment">Note</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,24rem),1fr));gap:14px">
+        <section class="k-box" id="stress-card">
+          <h2 style="font-size:1.05rem;margin-bottom:6px">Stress test: 1,000 pretend years</h2>
+          <div class="k-scroll flat">
+            <table id="stress-table" data-source="stress" data-row-key="key">
+              <thead><tr>
+                <th data-field="venue">Fees</th>
+                <th class="num" data-field="median_year_pct">Typical year</th>
+                <th class="num" data-field="bad_year_pct">Bad year</th>
+                <th class="num" data-field="losing_year_chance_pct">Chance of losing year</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="k-box" id="lessons-card">
+          <h2 style="font-size:1.05rem;margin-bottom:6px">Patterns found</h2>
+          <div class="k-scroll flat" style="max-height:20rem;overflow:auto">
+            <table id="lessons-table" data-source="lessons" data-row-key="key">
+              <thead><tr>
+                <th data-field="group">Group</th>
+                <th class="num" data-field="trades">Trades</th>
+                <th class="num" data-field="avg_net_bps">Avg (bps)</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
       </div>
-    </section>
-    <section class="mt-card" id="lessons-card">
-      <h2>Patterns found</h2>
-      <p class="mt-note">Average result per trade in basis points (1 bps = 0.01%), grouped. Patterns found after the fact, not yet rules.</p>
-      <div class="mt-scroll flat" style="max-height: 22rem; overflow: auto">
-        <table id="lessons-table" data-source="lessons" data-row-key="key">
-          <thead><tr>
-            <th data-field="group">Group</th>
-            <th class="num" data-field="trades">Trades</th>
-            <th class="num" data-field="avg_net_bps">Avg bps</th>
-            <th class="num" data-field="win_pct">Win %</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-  </div>
+    </div>
+  </details>
 </div>
 
 <script>
 (() => {
   const num = (v) => (v === '' || v == null ? null : Number(v));
   const usd = d3.format(',.2f'), usd0 = d3.format('$,.0f'), int = d3.format(','), f1 = d3.format(',.1f');
-  const money = (v) => (v == null || isNaN(v) ? '—' : (v < 0 ? '-' : '') + usd(Math.abs(v)));
-  const tone = (el, v) => { el.classList.toggle('pos', v > 0); el.classList.toggle('neg', v < 0); };
+  const dollars = (v) => (v == null || isNaN(v) ? '—' : (v < 0 ? '-$' : '$') + usd(Math.abs(v)));
+  const signedDollars = (v) => (v == null || isNaN(v) ? '—' : (v > 0 ? '+$' : v < 0 ? '-$' : '$') + usd(Math.abs(v)));
+  const tone = (e, v) => { e.classList.toggle('pos', v > 0); e.classList.toggle('neg', v < 0); };
   const asset = () => dash.params().asset || 'ETH';
   const fees = () => dash.params().fees || 'low';
-  const venueFor = (a, f) => (f === 'liquid' ? 'Liquid' : a === 'ETH' ? 'Low-fee exchange' : 'FX broker');
-  const venue = () => venueFor(asset(), fees());
-  const fail = (el) => { el.replaceChildren(); const d = document.createElement('div'); d.className = 'mt-fail'; d.textContent = 'Failed to load'; el.append(d); };
+  const venue = () => (fees() === 'liquid' ? 'Liquid' : asset() === 'ETH' ? 'Low-fee exchange' : 'FX broker');
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const fail = (box) => { box.replaceChildren(el('div', 'k-fail', 'Failed to load')); };
+  const mark = (tag, src, field, where, text) => { const e = el(tag, null, text); e.dataset.source = src; e.dataset.field = field; if (where) e.dataset.where = where; return e; };
+  const prettyDate = (s) => d3.utcFormat('%a %b %-d')(new Date(String(s).slice(0, 10) + 'T00:00:00Z'));
 
   document.querySelectorAll('[data-asset]').forEach((b) => b.addEventListener('click', () => dash.setParams({ asset: b.dataset.asset })));
   document.querySelectorAll('[data-fees]').forEach((b) => b.addEventListener('click', () => dash.setParams({ fees: b.dataset.fees })));
-  const findInput = document.getElementById('find-input'), dealsSearch = document.getElementById('deals-search');
-  findInput.addEventListener('input', () => { dealsSearch.value = findInput.value; drawDeals(); });
-  findInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('deals-card').scrollIntoView({ behavior: 'smooth' }); });
-  dealsSearch.addEventListener('input', () => { findInput.value = dealsSearch.value; drawDeals(); });
+  document.getElementById('deals-search').addEventListener('input', () => drawDeals());
   document.getElementById('deals-filter').addEventListener('change', () => drawDeals());
 
-  function drawReport() {
+  // ---------- 1. Right now
+  function drawNow() {
+    const st = dash.data('live_status'), tr = dash.data('live_trades');
+    const say = document.getElementById('now-say');
+    if (st.status === 'error') return fail(say);
+    if (st.status !== 'ok' || !st.data.length) return;
+    const r = st.data[0];
+    document.querySelectorAll('#now [data-source="live_status"]').forEach((e) => {
+      const f = e.dataset.field, n = num(r[f]);
+      e.textContent = ['price', 'balance', 'deposit'].includes(f) ? dollars(n) : f === 'start_date' ? prettyDate(r[f]) : r[f];
+      if (f === 'balance') tone(e, n - num(r.deposit));
+    });
+    const rows = tr.status === 'ok' ? tr.data : [];
+    const open = rows.find((x) => x.status === 'open');
+    const hi = mark('b', 'live_status', 'range_high', null, dollars(num(r.range_high)));
+    const lo = mark('b', 'live_status', 'range_low', null, dollars(num(r.range_low)));
+    const meter = document.getElementById('now-meter');
+    meter.hidden = !open;
+    if (open) {
+      const w = 'trade_id=' + open.trade_id, pnl = num(open.pnl_usd);
+      const p = mark('b', 'live_trades', 'pnl_usd', w, signedDollars(pnl)); tone(p, pnl);
+      say.replaceChildren(`The robot ${open.side === 'LONG' ? 'bought' : 'sold'} ETH at `, mark('b', 'live_trades', 'entry', w, dollars(num(open.entry))),
+        ` and is ${pnl >= 0 ? 'up' : 'down'} `, p, ' right now. Its safety stop is at ', mark('b', 'live_trades', 'stop', w, dollars(num(open.stop))), '.');
+      const entry = num(open.entry), stop = num(open.stop), now = num(open.exit);
+      const room = Math.max(0, Math.min(1, Math.abs(now - stop) / Math.abs(entry - stop)));
+      document.getElementById('now-meter-label').textContent = room >= 1 ? 'Far from the safety stop' : `Room left before the safety stop: ${Math.round(room * 100)}%`;
+      const fill = document.getElementById('now-meter-fill');
+      fill.style.width = Math.max(4, Math.min(100, room * 100)) + '%';
+      fill.style.background = room < 0.35 ? 'var(--color-bad)' : 'var(--color-ok)';
+    } else if (/Watching/.test(r.state)) {
+      say.replaceChildren('The robot is waiting for its signal. It will ', el('b', null, 'buy'), ' if ETH goes above ', hi, ', or ', el('b', null, 'sell'), ' if ETH drops below ', lo, ', any time before 16:00 UTC.');
+    } else if (/Building/.test(r.state)) {
+      say.replaceChildren("The robot is writing down ETH's highest and lowest price until 07:00 UTC. So far the high is ", hi, ' and the low is ', lo, '.');
+    } else if (/Done/.test(r.state)) {
+      say.replaceChildren('The robot already made its trade today. It only trades once a day. Tomorrow it starts fresh at midnight UTC.');
+    } else if (/FOMC|Fed/.test(r.state)) {
+      say.replaceChildren('Today is a big US interest-rate news day, so the robot is taking the day off.');
+    } else {
+      say.replaceChildren('No trade today: ETH stayed between ', lo, ' and ', hi, ', so the signal never came.');
+    }
+    const closed = rows.filter((x) => x.status === 'closed');
+    const wins = closed.filter((x) => num(x.pnl_usd) > 0).length;
+    document.getElementById('now-wl').textContent = closed.length ? `${wins} wins, ${closed.length - wins} losses` : 'No trades yet';
+    const dots = document.getElementById('now-dots'); dots.replaceChildren();
+    closed.forEach((x) => dots.append(el('i', num(x.pnl_usd) > 0 ? 'w' : 'l')));
+  }
+
+  // ---------- 2. Trade cards
+  function spark(parent, t) {
+    const pts = (t.path || '').split(';').map(Number).filter((v) => !isNaN(v));
+    if (pts.length < 2) return;
+    const W = 300, H = 70, pad = 6;
+    const stop = num(t.stop), entry = num(t.entry);
+    const lo = Math.min(stop, ...pts), hi = Math.max(stop, ...pts);
+    const x = d3.scaleLinear([0, pts.length - 1], [pad, W - pad]);
+    const y = d3.scaleLinear([lo, hi], [H - pad, pad]);
+    const svg = d3.select(parent).append('svg').attr('class', 'k-spark').attr('viewBox', `0 0 ${W} ${H}`).attr('preserveAspectRatio', 'none').attr('role', 'img')
+      .attr('aria-label', `Price went from ${dollars(entry)} to ${dollars(pts[pts.length - 1])}`);
+    const line = (yy, color, dash_) => svg.append('line').attr('x1', pad).attr('x2', W - pad).attr('y1', yy).attr('y2', yy).attr('stroke', color)
+      .attr('stroke-width', 1.5).attr('stroke-dasharray', dash_ || null).attr('vector-effect', 'non-scaling-stroke');
+    line(y(stop), 'var(--color-bad)', '5 4');
+    line(y(entry), 'var(--cds-chart-reference)');
+    const win = num(t.pnl_usd) >= 0;
+    svg.append('path').datum(pts).attr('fill', 'none').attr('stroke', win ? 'var(--color-ok)' : 'var(--color-bad)').attr('stroke-width', 2.5)
+      .attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round').attr('vector-effect', 'non-scaling-stroke')
+      .attr('d', d3.line().x((_, i) => x(i)).y((v) => y(v)));
+  }
+
+  function drawCards() {
+    const box = document.getElementById('live-cards');
+    const q = dash.data('live_trades');
+    if (q.status === 'error') return fail(box);
+    box.replaceChildren();
+    if (q.status !== 'ok') return;
+    if (!q.data.length) { box.append(el('p', 'k-sub', 'No trades yet. Check back soon!')); return; }
+    q.data.slice().reverse().forEach((t) => {
+      if (t.status === 'skipped') {
+        const c = el('article', 'k-box k-trade');
+        c.append(el('div', 'k-date', prettyDate(t.date)), el('p', 'k-what', 'No trade: ' + (t.note || 'skipped')));
+        box.append(c); return;
+      }
+      const pnl = num(t.pnl_usd), isOpen = t.status === 'open';
+      const card = el('article', 'k-box k-trade ' + (isOpen ? 'open' : pnl > 0 ? 'win' : 'loss'));
+      card.id = t.trade_id;
+      const w = 'trade_id=' + t.trade_id;
+      const top = el('div', 'k-trade-top');
+      const left = el('div');
+      left.append(el('div', 'k-date', prettyDate(t.date)), el('span', 'k-badge ' + (isOpen ? 'open' : pnl > 0 ? 'win' : 'loss'), isOpen ? 'In the trade now' : pnl > 0 ? 'Win' : 'Loss'));
+      const res = mark('div', 'live_trades', 'pnl_usd', w, signedDollars(pnl)); res.classList.add('k-result'); tone(res, pnl);
+      top.append(left, res);
+      const what = el('p', 'k-what');
+      const why = isOpen ? 'Still going.' : /stop/.test(t.reason) ? 'It hit the safety stop.' : 'Closed at the end of the day.';
+      what.append(el('b', null, t.side === 'LONG' ? 'Bought' : 'Sold'), t.side === 'LONG' ? ' (betting ETH goes up) at ' : ' (betting ETH goes down) at ',
+        mark('b', 'live_trades', 'entry', w, dollars(num(t.entry))), isOpen ? ', now ' : ', got out at ',
+        mark('b', 'live_trades', 'exit', w, dollars(num(t.exit))), '. ' + why);
+      const sp = el('div'); spark(sp, t);
+      const facts = el('div', 'k-facts');
+      facts.append(
+        el('span', null, 'At its best'), mark('span', 'live_trades', 'best_usd', w, signedDollars(num(t.best_usd))),
+        el('span', null, 'At its worst'), mark('span', 'live_trades', 'worst_usd', w, signedDollars(num(t.worst_usd))),
+        el('span', null, 'Time in the trade'), mark('span', 'live_trades', 'held', w, t.held),
+        el('span', null, 'Amount of ETH'), mark('span', 'live_trades', 'lots', w, d3.format(',.3f')(num(t.lots))),
+        el('span', null, 'Most it could lose'), mark('span', 'live_trades', 'risk_usd', w, dollars(num(t.risk_usd))));
+      card.append(top, what, sp, facts);
+      box.append(card);
+    });
+  }
+
+  // ---------- 3. Test summary + balance chart
+  function drawTest() {
     const a = asset(), v = venue(), key = `${a}-${v}`;
     document.querySelectorAll('[data-asset]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.asset === a)));
     document.querySelectorAll('[data-fees]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.fees === fees())));
     document.getElementById('lot-def').textContent = a === 'ETH' ? '1 lot = 1 ETH' : '1 lot = 100 oz';
-    const marks = document.querySelectorAll('#report [data-source="report"]');
-    marks.forEach((el) => el.setAttribute('data-where', 'key=' + key));
+    const marks = document.querySelectorAll('[data-source="report"]');
+    marks.forEach((e) => e.setAttribute('data-where', 'key=' + key));
     const q = dash.data('report');
-    const take = document.getElementById('takeaway');
-    if (q.status !== 'ok') { if (q.status === 'error') fail(take); return; }
+    if (q.status !== 'ok') return;
     const r = q.data.find((x) => x.key === key);
     if (!r) return;
-    const fmt = {
-      initial_deposit: (x) => money(x), total_net_profit: money, gross_profit: money, gross_loss: money, total_commission: money,
-      expected_payoff: money, balance_dd_absolute: money, balance_dd_maximal: money, final_balance: money,
-      largest_profit: money, largest_loss: money, average_profit: money, average_loss: money,
-      max_consecutive_wins_usd: money, max_consecutive_losses_usd: money, avg_position_usd: money, avg_risk_usd: money,
-      balance_dd_maximal_pct: (x) => f1(x) + '%', short_won_pct: (x) => f1(x) + '%', long_won_pct: (x) => f1(x) + '%',
-      profit_trades_pct: (x) => f1(x) + '%', loss_trades_pct: (x) => f1(x) + '%', avg_stop_distance_pct: (x) => d3.format('.2f')(x) + '%',
-      round_trip_cost_pct: (x) => d3.format('.2f')(x) + '%', profit_factor: (x) => d3.format('.2f')(x),
-      recovery_factor: (x) => d3.format('.2f')(x), sharpe_ratio: (x) => d3.format('.2f')(x),
-      total_trades: int, short_trades: int, long_trades: int, profit_trades: int, loss_trades: int,
-      max_consecutive_wins: int, max_consecutive_losses: int, skipped_trades: int, min_lot_trades: int,
-      avg_lots: (x) => d3.format(a === 'ETH' ? ',.4f' : ',.3f')(x), min_lots: (x) => d3.format(a === 'ETH' ? ',.4f' : ',.3f')(x), max_lots: (x) => d3.format(a === 'ETH' ? ',.4f' : ',.3f')(x),
-    };
-    const signedFields = new Set(['total_net_profit', 'expected_payoff', 'recovery_factor', 'sharpe_ratio']);
-    marks.forEach((el) => {
-      const f = el.dataset.field, raw = r[f];
-      const n = num(raw);
-      el.textContent = fmt[f] && n != null && !isNaN(n) ? fmt[f](n) : raw;
-      if (signedFields.has(f)) tone(el, n);
-      else el.classList.remove('pos', 'neg');
+    const money = new Set(['initial_deposit', 'final_balance', 'total_net_profit', 'gross_profit', 'gross_loss', 'total_commission', 'expected_payoff', 'balance_dd_maximal', 'largest_profit', 'largest_loss', 'average_profit', 'average_loss', 'avg_position_usd', 'avg_risk_usd']);
+    const pct = new Set(['profit_trades_pct', 'balance_dd_maximal_pct', 'short_won_pct', 'long_won_pct', 'round_trip_cost_pct']);
+    const lots = new Set(['avg_lots', 'max_lots']);
+    const ints = new Set(['total_trades', 'skipped_trades', 'max_consecutive_losses']);
+    const dec = new Set(['profit_factor', 'recovery_factor', 'sharpe_ratio']);
+    marks.forEach((e) => {
+      const f = e.dataset.field, n = num(r[f]);
+      e.textContent = money.has(f) ? dollars(n) : pct.has(f) ? d3.format(f === 'round_trip_cost_pct' ? '.2f' : '.1f')(n) + '%'
+        : lots.has(f) ? d3.format(a === 'ETH' ? ',.4f' : ',.3f')(n) : ints.has(f) ? int(n) : dec.has(f) ? d3.format('.2f')(n) : r[f];
+      if (f === 'final_balance') tone(e, n - num(r.initial_deposit));
+      if (f === 'total_net_profit') tone(e, n);
     });
-    // Takeaway, every figure marked.
-    const mk = (field, text) => { const b = document.createElement('b'); b.dataset.source = 'report'; b.dataset.field = field; b.dataset.where = 'key=' + key; b.textContent = text; return b; };
-    const np = num(r.total_net_profit);
-    take.replaceChildren(
-      `${r.symbol} at ${r.venue.toLowerCase()} fees: `, mk('initial_deposit', '$' + usd(num(r.initial_deposit))), ` became `, mk('final_balance', '$' + usd(num(r.final_balance))),
-      ` over `, mk('total_trades', int(num(r.total_trades))), ` simulated trades, with a worst drop of `,
-      mk('balance_dd_maximal_pct', f1(num(r.balance_dd_maximal_pct)) + '%'), np < 0 ? '. It loses money at these fees.' : '.',
-      num(r.skipped_trades) > 0 ? ` ${int(num(r.skipped_trades))} trades were skipped because the smallest allowed lot would risk more than 2% of the account.` : '');
-  }
-
-  function outDeals() {
-    const q = dash.data('deals');
-    if (q.status !== 'ok') return null;
-    const a = asset(), v = venue();
-    return q.data.filter((d) => d.asset === a && d.venue === v).map((d) => ({ ...d, comment: d.comment || '' }));
+    const end = num(r.final_balance), start = num(r.initial_deposit);
+    document.getElementById('test-say').textContent = end > start
+      ? `In the test, ${dollars(start)} grew to ${dollars(end)} over ${int(num(r.total_trades))} trades. ` + (fees() === 'liquid' ? 'Liquid’s fees eat a big part of the profit.' : 'With Liquid’s higher fees it makes much less, so try the other button.')
+      : `In the test, this lost money: ${dollars(start)} became ${dollars(end)}. The fees are too high for this rule.`;
   }
 
   function drawBalance() {
-    const el = document.getElementById('balance-chart');
+    const box = document.getElementById('balance-chart');
     const q = dash.data('deals');
-    if (q.status === 'error') return fail(el);
-    const rows = outDeals();
-    if (!rows) { el.replaceChildren(); el.classList.add('dash-skeleton'); return; }
-    el.classList.remove('dash-skeleton');
+    if (q.status === 'error') return fail(box);
+    if (q.status !== 'ok') { box.replaceChildren(); box.classList.add('dash-skeleton'); return; }
+    box.classList.remove('dash-skeleton');
     const rep = dash.data('report');
     const rr = rep.status === 'ok' ? rep.data.find((x) => x.key === `${asset()}-${venue()}`) : null;
     const dep = rr ? num(rr.initial_deposit) : 1000;
-    const pts = [{ n: 0, v: dep, t: 'start' }].concat(rows.filter((d) => d.direction === 'out').map((d) => ({ n: num(d.order), v: num(d.balance), t: d.time })));
-    const W = Math.max(280, el.clientWidth), H = 260;
-    el.replaceChildren();
-    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
-    const y = d3.scaleLinear(d3.extent(pts, (p) => p.v), [H - 26, 10]).nice();
-    const probe = svg.append('g').call(d3.axisLeft(y).ticks(5).tickFormat(usd0)).attr('font-size', null).attr('font-family', null);
-    probe.selectAll('text').style('font-size', 'var(--cds-font-size-caption)');
+    const rows = q.data.filter((d) => d.asset === asset() && d.venue === venue() && d.direction === 'out');
+    const pts = [{ n: 0, v: dep, t: '' }].concat(rows.map((d) => ({ n: num(d.order), v: num(d.balance), t: d.time })));
+    const W = Math.max(280, box.clientWidth), H = 260;
+    box.replaceChildren();
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    const y = d3.scaleLinear(d3.extent(pts, (p) => p.v), [H - 28, 10]).nice();
+    const probe = svg.append('g').call(d3.axisLeft(y).ticks(4).tickFormat(usd0)).attr('font-size', null).attr('font-family', null);
+    probe.selectAll('text').style('font-size', '12px');
     const tickW = d3.max(probe.selectAll('text').nodes(), (n) => n.getComputedTextLength()) || 40;
     probe.remove();
-    const m = { l: tickW + 12, r: 12, t: 10, b: 26 };
+    const m = { l: tickW + 12, r: 12, t: 10, b: 28 };
     const x = d3.scaleLinear([0, d3.max(pts, (p) => p.n)], [m.l, W - m.r]);
     svg.append('g').attr('transform', `translate(${m.l},0)`)
-      .call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)).tickFormat(usd0))
+      .call(d3.axisLeft(y).ticks(4).tickSize(-(W - m.l - m.r)).tickFormat(usd0))
       .attr('font-size', null).attr('font-family', null)
       .call((g) => g.select('.domain').remove())
       .call((g) => g.selectAll('line').attr('stroke', 'var(--cds-chart-grid)'))
-      .call((g) => g.selectAll('text').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)'));
-    svg.append('g').attr('transform', `translate(0,${H - m.b})`)
-      .call(d3.axisBottom(x).ticks(Math.max(2, Math.floor((W - m.l - m.r) / 70))).tickFormat(int).tickSizeOuter(0))
-      .attr('font-size', null).attr('font-family', null)
-      .call((g) => g.select('.domain').attr('stroke', 'var(--cds-chart-axis)'))
-      .call((g) => g.selectAll('line').remove())
-      .call((g) => g.selectAll('text').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)'));
-    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(dep)).attr('y2', y(dep))
-      .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 4');
-    svg.append('path').datum(pts).attr('fill', 'none').attr('stroke', dash.colors[0]).attr('stroke-width', 2)
-      .attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round').attr('d', d3.line().x((p) => x(p.n)).y((p) => y(p.v)));
-    const tip = d3.select(el).append('div').attr('class', 'mt-tip').style('display', 'none');
-    const dot = svg.append('circle').attr('r', 3.5).attr('fill', dash.colors[0]).style('display', 'none');
+      .call((g) => g.selectAll('text').attr('fill', 'var(--color-fg-muted)').style('font-size', '12px'));
+    let lastX = -1e9;
+    rows.forEach((d, i) => {
+      const yr = d.time.slice(0, 4);
+      if (i && rows[i - 1].time.slice(0, 4) === yr) return;
+      const px = x(num(d.order));
+      if (px - lastX < 36) return;
+      lastX = px;
+      svg.append('text').attr('x', px).attr('y', H - 8).attr('text-anchor', 'middle').attr('font-size', 12).attr('fill', 'var(--color-fg-muted)').text(yr);
+    });
+    const grad = svg.append('defs').append('linearGradient').attr('id', 'k-area').attr('x1', 0).attr('x2', 0).attr('y1', 0).attr('y2', 1);
+    [[0, .26], [.25, .16], [.5, .08], [.75, .03], [1, 0]].forEach(([o, op]) => grad.append('stop').attr('offset', o).attr('style', `stop-color:${dash.colors[0]};stop-opacity:${op}`));
+    svg.append('path').datum(pts).attr('fill', 'url(#k-area)').attr('d', d3.area().x((p) => x(p.n)).y0(H - m.b).y1((p) => y(p.v)));
+    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(dep)).attr('y2', y(dep)).attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 4');
+    svg.append('path').datum(pts).attr('fill', 'none').attr('stroke', dash.colors[0]).attr('stroke-width', 2.5).attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round')
+      .attr('d', d3.line().x((p) => x(p.n)).y((p) => y(p.v)));
+    const tip = d3.select(box).append('div').attr('class', 'k-tip').style('display', 'none');
+    const dot = svg.append('circle').attr('r', 5).attr('fill', dash.colors[0]).style('display', 'none');
     const bis = d3.bisector((p) => p.n).center;
     svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).attr('fill', 'transparent')
       .on('mousemove', (ev) => {
@@ -456,53 +611,48 @@
         const p = pts[bis(pts, x.invert(px))];
         dot.style('display', null).attr('cx', x(p.n)).attr('cy', y(p.v));
         tip.style('display', null).selectAll('*').remove();
-        tip.append('div').attr('class', 'd').text(p.n ? `Trade ${int(p.n)} · ${p.t}` : 'Initial deposit');
-        tip.append('div').text('Balance ' + usd0(p.v));
-        const box = el.getBoundingClientRect(), tw = tip.node().offsetWidth;
-        tip.style('left', Math.min(Math.max(0, (x(p.n) / W) * box.width + 12), box.width - tw) + 'px').style('top', '8px');
+        tip.append('div').attr('class', 'd').text(p.n ? `Trade ${int(p.n)} · ${p.t.slice(0, 10)}` : 'Start');
+        tip.append('div').text(usd0(p.v));
+        const b = box.getBoundingClientRect(), tw = tip.node().offsetWidth;
+        tip.style('left', Math.min(Math.max(0, (x(p.n) / W) * b.width + 12), b.width - tw) + 'px').style('top', '8px');
       })
       .on('mouseleave', () => { tip.style('display', 'none'); dot.style('display', 'none'); });
   }
 
+  // ---------- 4. Expert details
   function drawYearly() {
-    const el = document.getElementById('yearly-chart');
+    const box = document.getElementById('yearly-chart');
     const q = dash.data('yearly');
-    if (q.status === 'error') return fail(el);
-    if (q.status !== 'ok') { el.replaceChildren(); el.classList.add('dash-skeleton'); return; }
-    el.classList.remove('dash-skeleton');
-    const rows = q.data.filter((r) => r.asset === asset() && r.venue === venue()).map((r) => ({ year: String(r.year), v: num(r.net_profit), p: num(r.return_pct) }));
-    const W = Math.max(260, el.clientWidth), H = 260, m = { l: 8, r: 8, t: 34, b: 24 };
-    el.replaceChildren();
-    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    if (q.status === 'error') return fail(box);
+    if (q.status !== 'ok' || !box.clientWidth) return;
+    const rows = q.data.filter((r) => r.asset === asset() && r.venue === venue()).map((r) => ({ year: String(r.year), v: num(r.net_profit) }));
+    const W = Math.max(260, box.clientWidth), H = 240, m = { l: 8, r: 8, t: 30, b: 24 };
+    box.replaceChildren();
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
     const x = d3.scaleBand(rows.map((r) => r.year), [m.l, W - m.r]).padding(0.3);
-    const lo = Math.min(0, d3.min(rows, (r) => r.v)), hi = Math.max(0, d3.max(rows, (r) => r.v));
-    const y = d3.scaleLinear([lo, hi], [H - m.b - 30, m.t]).nice();
+    const y = d3.scaleLinear([Math.min(0, d3.min(rows, (r) => r.v)), Math.max(0, d3.max(rows, (r) => r.v))], [H - m.b - 20, m.t]).nice();
     svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(0)).attr('y2', y(0)).attr('stroke', 'var(--cds-chart-axis)');
     const bw = Math.min(32, x.bandwidth());
-    const short = (v) => (v < 0 ? '-' : '+') + '$' + d3.format(Math.abs(v) >= 1000 ? '.3~s' : ',.0f')(Math.abs(v)).replace('k', 'K');
     rows.forEach((r) => {
       const cx = x(r.year) + x.bandwidth() / 2;
-      svg.append('rect').attr('x', cx - bw / 2).attr('width', bw).attr('y', Math.min(y(r.v), y(0)))
-        .attr('height', Math.max(1, Math.abs(y(r.v) - y(0)))).attr('rx', 4)
+      svg.append('rect').attr('x', cx - bw / 2).attr('width', bw).attr('y', Math.min(y(r.v), y(0))).attr('height', Math.max(1, Math.abs(y(r.v) - y(0)))).attr('rx', 4)
         .attr('fill', r.v >= 0 ? dash.colors[0] : 'var(--cds-chart-status-critical)');
-      const ty = r.v >= 0 ? y(r.v) - 18 : y(r.v) + 14;
-      svg.append('text').attr('x', cx).attr('y', ty).attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', 'var(--color-fg)').text(short(r.v));
-      svg.append('text').attr('x', cx).attr('y', ty + 12).attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', 'var(--color-fg-muted)').text((r.p > 0 ? '+' : '') + f1(r.p) + '%');
+      svg.append('text').attr('x', cx).attr('y', r.v >= 0 ? y(r.v) - 8 : y(r.v) + 16).attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', 'var(--color-fg)')
+        .text((r.v >= 0 ? '+$' : '-$') + d3.format(',.0f')(Math.abs(r.v)));
       svg.append('text').attr('x', cx).attr('y', H - 6).attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').text(r.year);
     });
   }
 
-  function td(tr, text, cls) { const c = document.createElement('td'); if (cls) c.className = cls; c.textContent = text; tr.append(c); return c; }
+  const td = (tr, text, cls) => { const c = el('td', cls, text); tr.append(c); return c; };
 
   function drawDeals() {
     const tb = document.querySelector('#deals-table tbody');
     tb.replaceChildren();
-    const rows = outDeals();
-    if (!rows) return;
-    const a = asset();
+    const q = dash.data('deals');
+    if (q.status !== 'ok' || !document.getElementById('details').open) return;
+    const rows = q.data.filter((d) => d.asset === asset() && d.venue === venue()).map((d) => ({ ...d, comment: d.comment || '' }));
     const term = document.getElementById('deals-search').value.trim().toLowerCase();
     const mode = document.getElementById('deals-filter').value;
-    // Group in/out pairs by trade so filters keep both legs together.
     const byOrder = d3.group(rows, (d) => d.order);
     let orders = Array.from(byOrder.keys());
     const outOf = (o) => byOrder.get(o).find((d) => d.direction === 'out');
@@ -510,113 +660,56 @@
     if (mode === 'loss') orders = orders.filter((o) => num(outOf(o).profit) + 2 * num(outOf(o).commission) <= 0);
     if (mode === 'stop') orders = orders.filter((o) => outOf(o).comment.startsWith('stop loss'));
     if (mode === 'news') orders = orders.filter((o) => outOf(o).comment.includes('|'));
-    const cpi = (o, tag) => outOf(o).comment.split(';').some((x) => /Inflation Rate (YoY|MoM)/.test(x) && x.includes(tag));
-    if (mode === 'hot') orders = orders.filter((o) => cpi(o, 'beat/hot'));
-    if (mode === 'cool') orders = orders.filter((o) => cpi(o, 'miss/cool'));
     if (term) orders = orders.filter((o) => byOrder.get(o).some((d) => [d.time, d.type, d.comment].join(' ').toLowerCase().includes(term)));
-    document.getElementById('deals-count').textContent = int(orders.length) + ' trades';
-    document.getElementById('find-count').textContent = term ? `${int(orders.length)} matching trades below (press Enter to jump)` : `${int(byOrder.size)} trades`;
-    const anyNews = rows.some((d) => d.comment.includes('|'));
-    document.getElementById('deals-note').textContent = 'Every simulated deal. Each day was traded bar by bar without seeing later bars. Not real money.' + (anyNews ? '' : ' News for each day is still being imported.');
-    const pf = d3.format(a === 'ETH' ? ',.2f' : ',.2f'), vf = d3.format(a === 'ETH' ? ',.4f' : ',.3f');
+    document.getElementById('deals-count').textContent = int(orders.length) + ' trades' + (orders.length > 1500 ? ' (newest 1,500 shown; search to find older ones)' : '');
+    const vf = d3.format(asset() === 'ETH' ? ',.4f' : ',.3f');
     const frag = document.createDocumentFragment();
-    orders.forEach((o) => {
-      byOrder.get(o).forEach((d) => {
-        const tr = document.createElement('tr'); tr.dataset.key = d.deal_id;
-        if (d.direction === 'out') tr.className = 'out';
-        td(tr, d.time);
-        td(tr, int(num(d.order)), 'num hide-narrow');
-        td(tr, d.symbol, 'hide-narrow');
-        td(tr, d.type, d.type);
-        td(tr, d.direction);
-        td(tr, vf(num(d.volume)), 'num');
-        td(tr, pf(num(d.price)), 'num');
-        td(tr, pf(num(d.sl)), 'num hide-narrow');
-        td(tr, money(num(d.commission)), 'num hide-narrow');
-        const p = td(tr, d.direction === 'out' ? money(num(d.profit)) : '', 'num'); if (d.direction === 'out') tone(p, num(d.profit));
-        td(tr, usd(num(d.balance)), 'num');
-        td(tr, d.comment, 'cmt');
-        frag.append(tr);
-      });
-    });
+    orders.slice(-1500).reverse().forEach((o) => byOrder.get(o).forEach((d) => {
+      const tr = el('tr'); tr.dataset.key = d.deal_id;
+      td(tr, d.time); td(tr, d.type === 'buy' ? 'Buy' : 'Sell'); td(tr, d.direction === 'in' ? 'In' : 'Out');
+      td(tr, vf(num(d.volume)), 'num'); td(tr, usd(num(d.price)), 'num'); td(tr, usd(num(d.sl)), 'num hide-narrow');
+      const p = td(tr, d.direction === 'out' ? signedDollars(num(d.profit)) : '', 'num'); if (d.direction === 'out') tone(p, num(d.profit));
+      td(tr, usd(num(d.balance)), 'num'); td(tr, d.comment, 'cmt');
+      frag.append(tr);
+    }));
     tb.append(frag);
   }
 
-  function simpleTable(sel, id, filter, cols) {
-    const tb = document.querySelector(sel + ' tbody');
-    tb.replaceChildren();
-    const q = dash.data(id);
-    if (q.status !== 'ok') return;
-    q.data.filter(filter).forEach((r) => {
-      const tr = document.createElement('tr'); tr.dataset.key = r.key;
-      cols.forEach(([f, fn, cls, signed]) => { const c = td(tr, fn(r[f]), cls); if (signed) tone(c, num(r[f])); });
-      tb.append(tr);
-    });
-  }
-  const pct = (v) => (v === '' || v == null ? '—' : (Number(v) > 0 ? '+' : '') + f1(Number(v)) + '%');
-  const plain = (v) => (v === '' || v == null ? '—' : f1(Number(v)) + '%');
-  const bps = (v) => (v === '' || v == null ? '—' : (Number(v) > 0 ? '+' : '') + f1(Number(v)));
-
-  function drawLive() {
-    const st = dash.data('live_status'), tr = dash.data('live_trades');
-    const lv = document.getElementById('live-levels');
-    if (st.status === 'ok' && st.data.length) {
-      const r = st.data[0];
-      document.querySelectorAll('#live [data-source="live_status"]').forEach((el) => {
-        const f = el.dataset.field, n = num(r[f]);
-        el.textContent = ['price', 'balance', 'balance_low_fee'].includes(f) && n != null ? '$' + usd(n) : f === 'trades_closed' ? int(n) : r[f];
-        if (f === 'balance') tone(el, n - num(r.deposit));
+  function simpleTables() {
+    const fill = (sel, id, filter, cols) => {
+      const tb = document.querySelector(sel + ' tbody'); tb.replaceChildren();
+      const q = dash.data(id); if (q.status !== 'ok') return;
+      q.data.filter(filter).forEach((r) => {
+        const tr = el('tr'); tr.dataset.key = r.key;
+        cols.forEach(([f, fn, cls, sg]) => { const c = td(tr, fn(r[f]), cls); if (sg) tone(c, num(r[f])); });
+        tb.append(tr);
       });
-      lv.replaceChildren();
-      if (r.range_high !== '' && r.range_high != null) {
-        const mk = (field, v) => { const b = document.createElement('b'); b.dataset.source = 'live_status'; b.dataset.field = field; b.textContent = usd(num(v)); return b; };
-        lv.append("Today's range: buy above ", mk('range_high', r.range_high), ', sell below ', mk('range_low', r.range_low));
-      }
-    }
-    const tb = document.querySelector('#live-table tbody');
-    tb.replaceChildren();
-    if (tr.status !== 'ok') return;
-    tr.data.slice().reverse().forEach((r) => {
-      const row = document.createElement('tr'); row.dataset.key = r.trade_id;
-      td(row, r.date);
-      if (r.status === 'skipped') {
-        const c = td(row, 'skipped: ' + (r.note || ''), 'cmt'); c.colSpan = 10;
-      } else {
-        td(row, r.side, r.side === 'LONG' ? 'buy' : 'sell');
-        td(row, r.entry_time, 'hide-narrow');
-        td(row, usd(num(r.entry)), 'num');
-        td(row, usd(num(r.stop)), 'num hide-narrow');
-        td(row, d3.format(',.3f')(num(r.lots)), 'num');
-        td(row, '$' + usd(num(r.risk_usd)), 'num hide-narrow');
-        td(row, usd(num(r.exit)), 'num');
-        td(row, r.status === 'open' ? 'open now' : r.reason);
-        const p = td(row, money(num(r.pnl_usd)), 'num'); tone(p, num(r.pnl_usd));
-        td(row, usd(num(r.balance)), 'num');
-      }
-      tb.append(row);
-    });
+    };
+    const pct = (v) => (v === '' || v == null ? '—' : (Number(v) > 0 ? '+' : '') + f1(Number(v)) + '%');
+    fill('#stress-table', 'stress', (r) => r.asset === asset(), [
+      ['venue', (v) => v.replace(/ \(.*\)/, '')], ['median_year_pct', pct, 'num', true], ['bad_year_pct', pct, 'num', true],
+      ['losing_year_chance_pct', (v) => f1(Number(v)) + '%', 'num']]);
+    fill('#lessons-table', 'lessons', (r) => r.asset === asset(), [
+      ['group', (v) => v], ['trades', (v) => (v === '' ? '—' : int(Number(v))), 'num'],
+      ['avg_net_bps', (v) => (Number(v) > 0 ? '+' : '') + f1(Number(v)), 'num', true]]);
   }
+
+  document.getElementById('details').addEventListener('toggle', () => { drawYearly(); drawDeals(); });
 
   dash.onData(() => {
-    drawLive();
-    drawReport();
+    drawNow();
+    drawCards();
+    drawTest();
     drawBalance();
     drawYearly();
     drawDeals();
-    const venueName = (v) => v.replace(/ \(.*\)/, '');
-    simpleTable('#stress-table', 'stress', (r) => r.asset === asset(), [
-      ['venue', (v) => venueName(v)], ['median_year_pct', pct, 'num', true], ['bad_year_pct', pct, 'num', true],
-      ['losing_year_chance_pct', plain, 'num'], ['bad_drawdown_pct', plain, 'num'],
-      ['fees_doubled_pct', pct, 'num hide-narrow', true], ['without_best10_pct', pct, 'num hide-narrow', true]]);
-    simpleTable('#lessons-table', 'lessons', (r) => r.asset === asset(), [
-      ['group', (v) => v], ['trades', (v) => (v === '' ? '—' : int(Number(v))), 'num'],
-      ['avg_net_bps', bps, 'num', true], ['win_pct', (v) => (v === '' ? '—' : f1(Number(v)) + '%'), 'num']]);
+    simpleTables();
   });
 })();
 </script>
 
 </div>
 <p class="site-foot">Simulated trading for research. No real money, no orders placed, not financial advice.
-Updated 2026-10-23 22:13 UTC.</p>
+Updated 2026-10-23 22:23 UTC.</p>
 </body>
 </html>
