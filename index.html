@@ -47,7 +47,7 @@
 <script>
 // Minimal stand-in for the dashboard runtime: loads ./data/<id>.csv and re-renders on change.
 (() => {
-  const ids = ["live_trades", "live_status", "gold_trades", "gold_status", "gold_dip_trades", "gold_dip_status", "gold_asia_trades", "gold_asia_status", "gold_learning", "practice", "report", "deals", "yearly", "stress", "lessons"];
+  const ids = ["live_trades", "live_status", "gold_trades", "gold_status", "gold_dip_trades", "gold_dip_status", "gold_asia_trades", "gold_asia_status", "gold_asia5_trades", "gold_asia5_status", "gold_goal", "gold_learning", "practice", "report", "deals", "yearly", "stress", "lessons"];
   const store = {}, subs = [];
   let params = { asset: 'ETH', fees: 'low' };
   const css = getComputedStyle(document.documentElement);
@@ -55,7 +55,7 @@
   const run = () => subs.forEach((fn) => { try { fn(); } catch (e) { console.error(e); } });
   ids.forEach((id) => {
     store[id] = { status: 'loading', data: [], columns: [] };
-    d3.csv(`data/${id}.csv?v=2026-10-24T02:53`).then((rows) => {
+    d3.csv(`data/${id}.csv?v=2026-10-24T02:57`).then((rows) => {
       store[id] = { status: 'ok', data: rows, columns: rows.columns || [] };
       run();
     }).catch((e) => { store[id] = { status: 'error', data: [], message: String(e) }; run(); });
@@ -282,6 +282,25 @@
     <div class="k-trades" id="gold-cards" data-source="gold_trades"></div>
   </section>
 
+  <!-- Gold $1,000 goal -->
+  <section class="k-sec" id="goldgoal">
+    <h2><span class="k-num-dot" style="background:#e3a008">$</span>Gold goal: make $1,000 of pretend profit</h2>
+    <div class="k-box k-now k-gold">
+      <p class="k-say" id="goldgoal-say"><span class="dash-skeleton">—</span></p>
+      <div class="k-meter">
+        <span class="k-time" id="goldgoal-label">Profit so far, out of $1,000</span>
+        <div class="k-meter-bar"><span id="goldgoal-fill" style="width:0"></span></div>
+      </div>
+      <div class="k-scroll flat">
+        <table id="goldgoal-table" data-source="gold_goal" data-row-key="robot">
+          <thead><tr><th data-field="robot">Robot</th><th class="num hide-narrow" data-field="trades">Trades</th><th class="num" data-field="profit_usd">Profit</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <p class="k-sub">To reach $1,000 sooner, robots #2, #3 and #4 now risk <b>2% of their pretend money</b> on each trade (about $100 if a trade hits its safety stop). In the 2020-2026 replay, robot #3 at 2% would have made about $1,240 with a worst drop of about 6%. Bigger risk means bigger wins <b>and</b> bigger losses.</p>
+  </section>
+
   <!-- Gold robot 2: RSI dip -->
   <section class="k-sec" id="golddip">
     <h2><span class="k-num-dot" style="background:#e3a008">G2</span>Gold robot #2: the dip buyer</h2>
@@ -342,8 +361,30 @@
       </div>
     </div>
     <p class="k-sub">How we found it: the robot tried <b>6,144 different rules</b>. Each one had to pass three tests in a row, on three different stretches of gold history, without seeing the next one first. Only <b>9 passed</b>, and the best ones were all the same idea: <b>at night (Asia hours) when gold is calm, follow a breakout of the last 50 candles</b> on the 15-minute chart, with a small target and a far safety stop.</p>
-    <p class="k-lesson">In the replay from 2020 to 2026 it won <b>394 times and lost 26 times</b> (94% wins), and it made money in every year tested, even with double fees. But each win is small (about $2) and each loss is about $20, so the total was only <b>+$282 on $5,000</b>. It takes about 150 trades a year, so reaching 1,000 wins live will take years. That is the real final exam.</p>
+    <p class="k-lesson">In the replay from 2020 to 2026 it won <b>394 times and lost 26 times</b> (94% wins), and it made money in every year tested, even with double fees. But each win is small (about $2) and each loss is about $20, so the total was only <b>+$282 on $5,000</b> when risking 0.5% a trade (about $1,240 at the 2% it uses now). It takes about 150 trades a year, so reaching 1,000 wins live will take years. That is the real final exam.</p>
     <div class="k-trades" id="goldasia-cards" data-source="gold_asia_trades"></div>
+  </section>
+
+  <!-- Gold robot 4: Asia breakout 5m -->
+  <section class="k-sec" id="goldasia5">
+    <h2><span class="k-num-dot" style="background:#e3a008">G4</span>Gold robot #4: night-time breakout, faster chart</h2>
+    <div class="k-box k-now k-gold">
+      <div class="k-now-head">
+        <span class="k-pill" data-source="gold_asia5_status" data-field="state">—</span>
+        <span class="k-time">Last checked <span data-source="gold_asia5_status" data-field="as_of">—</span></span>
+      </div>
+      <p class="k-say" id="goldasia5-say"><span class="dash-skeleton">—</span></p>
+      <div class="k-nums">
+        <div class="k-num"><span class="lab">Goal</span><span class="big" id="goldasia5-goal">—</span><span class="small" data-source="gold_asia5_status" data-field="goal">—</span></div>
+        <div class="k-num"><span class="lab">Pretend money</span><span class="big" data-source="gold_asia5_status" data-field="balance">—</span><span class="small">Started with <span data-source="gold_asia5_status" data-field="deposit">—</span> on <span data-source="gold_asia5_status" data-field="start_date">—</span></span></div>
+      </div>
+      <div class="k-meter">
+        <span class="k-time">Wins so far, out of 1,000</span>
+        <div class="k-meter-bar"><span id="goldasia5-fill" style="width:0"></span></div>
+      </div>
+    </div>
+    <p class="k-sub">The same night-time breakout as robot #3, but on the 5-minute chart, so it trades about twice as often. It only trades when the long-term average is also pointing the same way. It passed the same three tests, but a very similar version without that extra check failed, so treat this one as <b>less proven</b> than robot #3.</p>
+    <div class="k-trades" id="goldasia5-cards" data-source="gold_asia5_trades"></div>
   </section>
 
   <!-- 3. The 6-year test -->
@@ -917,6 +958,23 @@
       'Lesson: the early months, when it picked other moves, lost money. A high win rate alone did not make money.');
   }
 
+  function drawGoal() {
+    const q = dash.data('gold_goal'), say = document.getElementById('goldgoal-say'), tb = document.querySelector('#goldgoal-table tbody');
+    if (q.status === 'error') return fail(say);
+    if (q.status !== 'ok' || !q.data.length) return;
+    tb.replaceChildren();
+    q.data.forEach((r) => {
+      const row = el('tr'); row.dataset.key = r.robot;
+      td(row, r.robot, r.robot.startsWith("All") ? "k-move" : null); td(row, int(num(r.trades)), "num hide-narrow");
+      const m = td(row, signedDollars(num(r.profit_usd)), 'num'); tone(m, num(r.profit_usd));
+      tb.append(row);
+    });
+    const all = q.data.find((r) => r.robot.startsWith('All')), p = num(all.profit_usd), g = num(all.goal_usd);
+    document.getElementById('goldgoal-fill').style.width = Math.max(0, Math.min(100, (100 * p) / g)) + '%';
+    const b = el('b', null, signedDollars(p)); tone(b, p);
+    say.replaceChildren('All the gold robots together are at ', b, p >= g ? '. Goal reached! 🎉' : `. ${dollars(Math.max(0, g - p))} to go.`);
+  }
+
   document.getElementById('details').addEventListener('toggle', () => { drawYearly(); drawDeals(); });
 
   dash.onData(() => {
@@ -929,6 +987,9 @@
     drawCards('golddip-cards', 'gold_dip_trades', 'gold');
     drawRobot('goldasia', 'gold_asia', 'Waiting for a calm night (Asia hours, 00:00-07:00 UTC) when gold breaks past its last 50 candles in the trend direction.');
     drawCards('goldasia-cards', 'gold_asia_trades', 'gold');
+    drawRobot('goldasia5', 'gold_asia5', 'Waiting for a calm night when gold breaks past its last 50 five-minute candles, with the long-term trend agreeing.');
+    drawCards('goldasia5-cards', 'gold_asia5_trades', 'gold');
+    drawGoal();
     drawTest();
     drawBalance();
     drawPractice();
@@ -941,6 +1002,6 @@
 
 </div>
 <p class="site-foot">Simulated trading for research. No real money, no orders placed, not financial advice.
-Updated 2026-10-24 02:53 UTC.</p>
+Updated 2026-10-24 02:57 UTC.</p>
 </body>
 </html>
