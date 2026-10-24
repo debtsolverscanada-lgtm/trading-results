@@ -47,7 +47,7 @@
 <script>
 // Minimal stand-in for the dashboard runtime: loads ./data/<id>.csv and re-renders on change.
 (() => {
-  const ids = ["live_trades", "live_status", "gold_trades", "gold_status", "gold_dip_trades", "gold_dip_status", "gold_learning", "practice", "report", "deals", "yearly", "stress", "lessons"];
+  const ids = ["live_trades", "live_status", "gold_trades", "gold_status", "gold_dip_trades", "gold_dip_status", "gold_asia_trades", "gold_asia_status", "gold_learning", "practice", "report", "deals", "yearly", "stress", "lessons"];
   const store = {}, subs = [];
   let params = { asset: 'ETH', fees: 'low' };
   const css = getComputedStyle(document.documentElement);
@@ -55,7 +55,7 @@
   const run = () => subs.forEach((fn) => { try { fn(); } catch (e) { console.error(e); } });
   ids.forEach((id) => {
     store[id] = { status: 'loading', data: [], columns: [] };
-    d3.csv(`data/${id}.csv?v=2026-10-24T02:43`).then((rows) => {
+    d3.csv(`data/${id}.csv?v=2026-10-24T02:53`).then((rows) => {
       store[id] = { status: 'ok', data: rows, columns: rows.columns || [] };
       run();
     }).catch((e) => { store[id] = { status: 'error', data: [], message: String(e) }; run(); });
@@ -292,7 +292,7 @@
       </div>
       <p class="k-say" id="golddip-say"><span class="dash-skeleton">—</span></p>
       <div class="k-nums">
-        <div class="k-num"><span class="lab">Goal</span><span class="big" id="golddip-goal">—</span><span class="small">100 wins with fewer than 10 losses</span></div>
+        <div class="k-num"><span class="lab">Goal</span><span class="big" id="golddip-goal">—</span><span class="small" data-source="gold_dip_status" data-field="goal">—</span></div>
         <div class="k-num"><span class="lab">Pretend money</span><span class="big" data-source="gold_dip_status" data-field="balance">—</span><span class="small">Started with <span data-source="gold_dip_status" data-field="deposit">—</span> on <span data-source="gold_dip_status" data-field="start_date">—</span></span></div>
         <div class="k-num"><span class="lab">RSI right now</span><span class="big" data-source="gold_dip_status" data-field="rsi">—</span><span class="small">Under 30 in an uptrend = buy. Over 70 in a downtrend = sell.</span></div>
       </div>
@@ -320,6 +320,30 @@
         </table>
       </div>
     </div>
+  </section>
+
+  <!-- Gold robot 3: Asia breakout -->
+  <section class="k-sec" id="goldasia">
+    <h2><span class="k-num-dot" style="background:#e3a008">G3</span>Gold robot #3: the night-time breakout</h2>
+    <div class="k-box k-now k-gold">
+      <div class="k-now-head">
+        <span class="k-pill" data-source="gold_asia_status" data-field="state">—</span>
+        <span class="k-time">Last checked <span data-source="gold_asia_status" data-field="as_of">—</span></span>
+      </div>
+      <p class="k-say" id="goldasia-say"><span class="dash-skeleton">—</span></p>
+      <div class="k-nums">
+        <div class="k-num"><span class="lab">Goal</span><span class="big" id="goldasia-goal">—</span><span class="small" data-source="gold_asia_status" data-field="goal">—</span></div>
+        <div class="k-num"><span class="lab">Pretend money</span><span class="big" data-source="gold_asia_status" data-field="balance">—</span><span class="small">Started with <span data-source="gold_asia_status" data-field="deposit">—</span> on <span data-source="gold_asia_status" data-field="start_date">—</span></span></div>
+        <div class="k-num"><span class="lab">Gold price (per ounce)</span><span class="big" data-source="gold_asia_status" data-field="price">—</span></div>
+      </div>
+      <div class="k-meter">
+        <span class="k-time">Wins so far, out of 1,000</span>
+        <div class="k-meter-bar"><span id="goldasia-fill" style="width:0"></span></div>
+      </div>
+    </div>
+    <p class="k-sub">How we found it: the robot tried <b>6,144 different rules</b>. Each one had to pass three tests in a row, on three different stretches of gold history, without seeing the next one first. Only <b>9 passed</b>, and the best ones were all the same idea: <b>at night (Asia hours) when gold is calm, follow a breakout of the last 50 candles</b> on the 15-minute chart, with a small target and a far safety stop.</p>
+    <p class="k-lesson">In the replay from 2020 to 2026 it won <b>394 times and lost 26 times</b> (94% wins), and it made money in every year tested, even with double fees. But each win is small (about $2) and each loss is about $20, so the total was only <b>+$282 on $5,000</b>. It takes about 150 trades a year, so reaching 1,000 wins live will take years. That is the real final exam.</p>
+    <div class="k-trades" id="goldasia-cards" data-source="gold_asia_trades"></div>
   </section>
 
   <!-- 3. The 6-year test -->
@@ -847,30 +871,33 @@
       'Lesson: winning a lot is not the same as making money. On fast 1-minute charts the fees eat almost every win, and quick profit targets cut the big winners short. Slower 15-minute charts did best.');
   }
 
-  function drawGoldDip() {
-    const st = dash.data('gold_dip_status'), tr = dash.data('gold_dip_trades');
-    const say = document.getElementById('golddip-say');
+  function drawRobot(id, src, waiting) {
+    const st = dash.data(src + '_status'), tr = dash.data(src + '_trades');
+    const say = document.getElementById(id + '-say');
     if (st.status === 'error') return fail(say);
     if (st.status !== 'ok' || !st.data.length) return;
     const r = st.data[0];
-    document.querySelectorAll('#golddip [data-source="gold_dip_status"]').forEach((e) => {
+    document.querySelectorAll(`#${id} [data-source="${src}_status"]`).forEach((e) => {
       const f = e.dataset.field, n = num(r[f]);
-      e.textContent = ['balance', 'deposit'].includes(f) ? dollars(n) : f === 'start_date' ? prettyDate(r[f]) : r[f];
+      e.textContent = ['balance', 'deposit', 'price'].includes(f) ? dollars(n) : f === 'start_date' ? prettyDate(r[f]) : r[f];
       if (f === 'balance') tone(e, n - num(r.deposit));
     });
-    const wins = int(num(r.wins)), losses = int(num(r.losses));
-    document.getElementById('golddip-goal').textContent = `${wins} wins, ${losses} losses`;
-    document.getElementById('golddip-fill').style.width = Math.min(100, num(r.wins)) + '%';
+    const wins = num(r.wins), losses = num(r.losses), goal = num(r.goal_wins) || 100, maxLoss = num(r.goal_max_losses) || 10;
+    document.getElementById(id + '-goal').textContent = `${int(wins)} wins, ${int(losses)} losses`;
+    document.getElementById(id + '-fill').style.width = Math.min(100, (100 * wins) / goal) + '%';
     const open = (tr.status === 'ok' ? tr.data : []).find((x) => x.status === 'open');
     if (open) {
-      const w = 'trade_id=' + open.trade_id, pnl = num(open.pnl_usd);
-      const p = mark('b', 'gold_dip_trades', 'pnl_usd', w, signedDollars(pnl)); tone(p, pnl);
-      say.replaceChildren(`It ${open.side === 'LONG' ? 'bought' : 'sold'} gold at `, mark('b', 'gold_dip_trades', 'entry', w, dollars(num(open.entry))),
-        ` and is ${pnl >= 0 ? 'up' : 'down'} `, p, '. Target ', mark('b', 'gold_dip_trades', 'target', w, dollars(num(open.target))),
-        ', safety stop ', mark('b', 'gold_dip_trades', 'stop', w, dollars(num(open.stop))), '.');
+      const w = 'trade_id=' + open.trade_id, pnl = num(open.pnl_usd), ds = src + '_trades';
+      const p = mark('b', ds, 'pnl_usd', w, signedDollars(pnl)); tone(p, pnl);
+      say.replaceChildren(`It ${open.side === 'LONG' ? 'bought' : 'sold'} gold at `, mark('b', ds, 'entry', w, dollars(num(open.entry))),
+        ` and is ${pnl >= 0 ? 'up' : 'down'} `, p, '. Target ', mark('b', ds, 'target', w, dollars(num(open.target))),
+        ', safety stop ', mark('b', ds, 'stop', w, dollars(num(open.stop))), '.');
     } else {
-      say.replaceChildren(losses >= 10 ? 'It has 10 losses now, so it missed the goal this round. It keeps trading so we learn more.' : 'Waiting for gold to dip hard while the trend is up (or jump while the trend is down).');
+      say.replaceChildren(losses >= maxLoss ? `It has ${int(losses)} losses now, so it missed the goal this round. It keeps trading so we learn more.` : waiting);
     }
+  }
+
+  function drawLearning() {
     const q = dash.data('gold_learning'), tb = document.querySelector('#learn-table tbody'), lesson = document.getElementById('learn-lesson');
     tb.replaceChildren();
     if (q.status === 'error') return fail(lesson);
@@ -897,8 +924,11 @@
     drawCards();
     drawGoldNow();
     drawCards('gold-cards', 'gold_trades', 'gold');
-    drawGoldDip();
+    drawRobot('golddip', 'gold_dip', 'Waiting for gold to dip hard while the trend is up (or jump while the trend is down).');
+    drawLearning();
     drawCards('golddip-cards', 'gold_dip_trades', 'gold');
+    drawRobot('goldasia', 'gold_asia', 'Waiting for a calm night (Asia hours, 00:00-07:00 UTC) when gold breaks past its last 50 candles in the trend direction.');
+    drawCards('goldasia-cards', 'gold_asia_trades', 'gold');
     drawTest();
     drawBalance();
     drawPractice();
@@ -911,6 +941,6 @@
 
 </div>
 <p class="site-foot">Simulated trading for research. No real money, no orders placed, not financial advice.
-Updated 2026-10-24 02:43 UTC.</p>
+Updated 2026-10-24 02:53 UTC.</p>
 </body>
 </html>
