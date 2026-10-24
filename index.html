@@ -47,7 +47,7 @@
 <script>
 // Minimal stand-in for the dashboard runtime: loads ./data/<id>.csv and re-renders on change.
 (() => {
-  const ids = ["live_trades", "live_status", "gold_trades", "gold_status", "report", "deals", "yearly", "stress", "lessons"];
+  const ids = ["live_trades", "live_status", "gold_trades", "gold_status", "practice", "report", "deals", "yearly", "stress", "lessons"];
   const store = {}, subs = [];
   let params = { asset: 'ETH', fees: 'low' };
   const css = getComputedStyle(document.documentElement);
@@ -55,7 +55,7 @@
   const run = () => subs.forEach((fn) => { try { fn(); } catch (e) { console.error(e); } });
   ids.forEach((id) => {
     store[id] = { status: 'loading', data: [], columns: [] };
-    d3.csv(`data/${id}.csv?v=2026-10-23T22:37`).then((rows) => {
+    d3.csv(`data/${id}.csv?v=2026-10-24T02:34`).then((rows) => {
       store[id] = { status: 'ok', data: rows, columns: rows.columns || [] };
       run();
     }).catch((e) => { store[id] = { status: 'error', data: [], message: String(e) }; run(); });
@@ -102,6 +102,9 @@
   .k-sub b { color: var(--color-fg); }
   .k-box { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: 18px; padding: 22px; min-width: 0; }
   .k-now.k-gold { background: var(--k-sun); border-color: var(--k-sun-edge); }
+  .k-practice { display: grid; gap: 14px; background: color-mix(in srgb, #7b5cd6 9%, var(--color-panel)); border-color: color-mix(in srgb, #7b5cd6 30%, var(--color-border-line)); }
+  .k-lesson { font-size: 1.1rem; line-height: 1.5; padding: 14px 16px; border-radius: 12px; background: var(--color-panel); border: 1px solid var(--color-border-line); }
+  .k-move { font-weight: 600; }
   .k-num-dot { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; font-size: .95rem; color: #fff; flex: none; }
 
   /* Hero */
@@ -305,6 +308,35 @@
         <div class="k-chart" id="balance-chart" data-source="deals"></div>
       </div>
       <p class="k-sub" id="test-say"></p>
+    </div>
+  </section>
+
+  <!-- Practice room -->
+  <section class="k-sec" id="practice">
+    <h2><span class="k-num-dot" style="background:#7b5cd6">P</span>Practice room: replaying charts until 100 wins</h2>
+    <div class="k-box k-practice">
+      <p class="k-sub">Like TradingView's <b>Bar Replay</b>: the robot watched old charts one candle at a time, never peeking ahead, and practiced three swing-trading moves until it had <b>100 winning trades</b>. Every trade had a safety stop and a profit target. Each trade risked the same amount ($5 for ETH, $25 for gold).</p>
+      <p class="k-lesson" id="practice-lesson"><span class="dash-skeleton">—</span></p>
+      <div class="k-switches">
+        <div class="k-seg" role="group" aria-label="Practice fees">
+          <button type="button" data-pfees="low">Cheap fees</button>
+          <button type="button" data-pfees="liquid">Liquid fees</button>
+        </div>
+      </div>
+      <div class="k-scroll flat">
+        <table id="practice-table" data-source="practice" data-row-key="key">
+          <thead><tr>
+            <th data-field="market">Coin</th>
+            <th data-field="chart">Chart</th>
+            <th data-field="setup">Move</th>
+            <th class="num" data-field="wins">Wins</th>
+            <th class="num" data-field="losses">Losses</th>
+            <th class="num hide-narrow" data-field="days">Days of practice</th>
+            <th class="num" id="practice-money-th" data-field="net_usd_low">Money made</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -746,6 +778,35 @@
       ['avg_net_bps', (v) => (Number(v) > 0 ? '+' : '') + f1(Number(v)), 'num', true]]);
   }
 
+  let pfees = 'low';
+  document.querySelectorAll('[data-pfees]').forEach((b) => b.addEventListener('click', () => { pfees = b.dataset.pfees; drawPractice(); }));
+  const MOVES = { pullback: 'Buy the dip in a trend', cross: 'Averages cross', breakout: 'Break out of the last 20 candles' };
+  function drawPractice() {
+    document.querySelectorAll('[data-pfees]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pfees === pfees)));
+    const tb = document.querySelector('#practice-table tbody'); tb.replaceChildren();
+    const th = document.getElementById('practice-money-th');
+    th.dataset.field = 'net_usd_' + pfees;
+    th.textContent = pfees === 'low' ? 'Money made (cheap fees)' : 'Money made (Liquid fees)';
+    const q = dash.data('practice');
+    const lesson = document.getElementById('practice-lesson');
+    if (q.status === 'error') return fail(lesson);
+    if (q.status !== 'ok') return;
+    const f = 'net_usd_' + pfees;
+    const rows = q.data.slice().sort((a, b) => num(b[f]) - num(a[f]));
+    rows.forEach((r) => {
+      const tr = el('tr'); tr.dataset.key = r.key;
+      td(tr, r.market); td(tr, r.chart); td(tr, MOVES[r.setup] || r.setup, 'k-move');
+      td(tr, int(num(r.wins)), 'num'); td(tr, int(num(r.losses)), 'num'); td(tr, f1(num(r.days)), 'num hide-narrow');
+      const m = td(tr, signedDollars(num(r[f])), 'num'); tone(m, num(r[f]));
+      tb.append(tr);
+    });
+    const winners = rows.filter((r) => num(r[f]) > 0).length;
+    const total = q.data.reduce((a, r) => a + num(r.wins), 0);
+    lesson.replaceChildren('The robot got ', el('b', null, int(total) + ' wins'), ' in practice, but ', el('b', null, `only ${winners} of ${rows.length}`),
+      ' practice runs made money' + (pfees === 'liquid' ? ' with Liquid\u2019s fees. ' : '. '),
+      'Lesson: winning a lot is not the same as making money. On fast 1-minute charts the fees eat almost every win, and quick profit targets cut the big winners short. Slower 15-minute charts did best.');
+  }
+
   document.getElementById('details').addEventListener('toggle', () => { drawYearly(); drawDeals(); });
 
   dash.onData(() => {
@@ -755,6 +816,7 @@
     drawCards('gold-cards', 'gold_trades', 'gold');
     drawTest();
     drawBalance();
+    drawPractice();
     drawYearly();
     drawDeals();
     simpleTables();
@@ -764,6 +826,6 @@
 
 </div>
 <p class="site-foot">Simulated trading for research. No real money, no orders placed, not financial advice.
-Updated 2026-10-23 22:37 UTC.</p>
+Updated 2026-10-24 02:34 UTC.</p>
 </body>
 </html>
