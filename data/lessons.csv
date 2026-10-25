@@ -1,6 +1,6 @@
 key,asset,group,trades,avg_net_bps,win_pct
 ETH-news_days,ETH,news days,799.0,35.5,
-ETH-quiet_days,ETH,quiet days,1413.0,8.3,
+ETH-quiet_days,ETH,quiet days,1413.0,8.2,
 ETH-Inflation Rate days,ETH,Inflation Rate days,77.0,19.0,40.3
 ETH-Non Farm Payrolls days,ETH,Non Farm Payrolls days,80.0,8.5,45.0
 ETH-Retail Sales days,ETH,Retail Sales days,69.0,18.1,55.1
@@ -15,7 +15,7 @@ ETH-weekday-Wed,ETH,weekday: Wed,,40.2,
 ETH-weekday-Thu,ETH,weekday: Thu,,52.4,
 ETH-weekday-Fri,ETH,weekday: Fri,,6.5,
 ETH-weekday-Sat,ETH,weekday: Sat,,5.3,
-ETH-weekday-Sun,ETH,weekday: Sun,,2.6,
+ETH-weekday-Sun,ETH,weekday: Sun,,2.4,
 ETH-by_exit-end_of_day,ETH,exit: end of day,1500.0,129.9,
 ETH-by_exit-stop_loss,ETH,exit: stop loss,712.0,-217.4,
 ETH-by_side-SHORT,ETH,side: SHORT,1027.0,12.5,
