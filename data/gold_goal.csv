@@ -1,6 +1,6 @@
 robot,trades,closed_usd,open_usd,profit_usd,goal_usd
-Gold robot #1 (averages cross),2,-29.83,-0.22,-30.05,1000.0
+Gold robot #1 (averages cross),2,-29.83,0.42,-29.41,1000.0
 Gold robot #2 (dip buyer),0,0.0,0.0,0.0,1000.0
 "Gold robot #3 (night breakout, 15m)",0,0.0,0.0,0.0,1000.0
 "Gold robot #4 (night breakout, 5m)",0,0.0,0.0,0.0,1000.0
-All gold robots,2,-29.83,-0.22,-30.05,1000.0
+All gold robots,2,-29.83,0.42,-29.41,1000.0
