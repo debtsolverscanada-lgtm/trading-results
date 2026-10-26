@@ -4424,7 +4424,7 @@ ETHUSD,ETH,Low-fee exchange,2211,ETH-binance-2211-out,2026-10-24 23:30,buy,out,0
 ETHUSD,ETH,Low-fee exchange,2212,ETH-binance-2212-in,2026-10-25 08:15,sell,in,0.326,2336.85,2371.52,-0.38,0.0,2244.26,
 ETHUSD,ETH,Low-fee exchange,2212,ETH-binance-2212-out,2026-10-25 23:30,buy,out,0.326,2327.43,2371.52,-0.38,3.07,2246.95,end of day
 ETHUSD,ETH,Low-fee exchange,2213,ETH-binance-2213-in,2026-10-26 15:15,buy,in,0.249,2338.45,2293.09,-0.29,0.0,2246.66,
-ETHUSD,ETH,Low-fee exchange,2213,ETH-binance-2213-out,2026-10-26 16:45,sell,out,0.249,2321.27,2293.09,-0.29,-4.28,2242.09,end of day
+ETHUSD,ETH,Low-fee exchange,2213,ETH-binance-2213-out,2026-10-26 18:45,sell,out,0.249,2314.29,2293.09,-0.29,-6.01,2240.35,end of day
 ETHUSD,ETH,Liquid,1,ETH-liquid-1-in,2020-01-01 11:15,buy,in,2.137,130.98,128.68,-0.27,0.0,999.73,
 ETHUSD,ETH,Liquid,1,ETH-liquid-1-out,2020-01-01 23:30,sell,out,2.137,130.48,128.68,-0.27,-1.07,998.4,end of day
 ETHUSD,ETH,Liquid,2,ETH-liquid-2-in,2020-01-03 08:30,buy,in,1.15,130.15,125.88,-0.14,0.0,998.26,
@@ -8850,7 +8850,7 @@ ETHUSD,ETH,Liquid,2211,ETH-liquid-2211-out,2026-10-24 23:30,buy,out,0.311,2357.9
 ETHUSD,ETH,Liquid,2212,ETH-liquid-2212-in,2026-10-25 08:15,sell,in,0.185,2336.85,2371.52,-0.41,0.0,1274.31,
 ETHUSD,ETH,Liquid,2212,ETH-liquid-2212-out,2026-10-25 23:30,buy,out,0.185,2327.43,2371.52,-0.41,1.74,1275.64,end of day
 ETHUSD,ETH,Liquid,2213,ETH-liquid-2213-in,2026-10-26 15:15,buy,in,0.141,2338.45,2293.09,-0.31,0.0,1275.32,
-ETHUSD,ETH,Liquid,2213,ETH-liquid-2213-out,2026-10-26 16:45,sell,out,0.141,2321.27,2293.09,-0.31,-2.42,1272.59,end of day
+ETHUSD,ETH,Liquid,2213,ETH-liquid-2213-out,2026-10-26 18:45,sell,out,0.141,2314.29,2293.09,-0.31,-3.41,1271.61,end of day
 XAUUSD,XAUUSD,FX broker,1,XAUUSD-cfd-1-in,2020-01-02 07:00,buy,in,0.01,1520.94,1518.95,-0.08,0.0,999.92,
 XAUUSD,XAUUSD,FX broker,1,XAUUSD-cfd-1-out,2020-01-02 08:00,sell,out,0.01,1518.95,1518.95,-0.08,-1.99,997.86,stop loss | 13:30 UTC Initial Jobless Claims 222.0 vs 225.0 f/c (miss/cool)
 XAUUSD,XAUUSD,FX broker,2,XAUUSD-cfd-2-in,2020-01-03 07:00,buy,in,0.01,1543.8,1528.95,-0.08,0.0,997.78,
