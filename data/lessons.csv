@@ -21,7 +21,7 @@ ETH-by_exit-stop_loss,ETH,exit: stop loss,712.0,-217.4,
 ETH-by_side-SHORT,ETH,side: SHORT,1027.0,12.5,
 ETH-by_side-LONG,ETH,side: LONG,1185.0,23.0,
 XAUUSD-news_days,XAUUSD,news days,491.0,4.8,
-XAUUSD-quiet_days,XAUUSD,quiet days,454.0,6.4,
+XAUUSD-quiet_days,XAUUSD,quiet days,455.0,6.3,
 XAUUSD-Inflation Rate days,XAUUSD,Inflation Rate days,45.0,-7.4,28.9
 XAUUSD-Non Farm Payrolls days,XAUUSD,Non Farm Payrolls days,47.0,-0.9,36.2
 XAUUSD-Retail Sales days,XAUUSD,Retail Sales days,42.0,3.1,45.2
@@ -30,12 +30,12 @@ XAUUSD-GDP Growth days,XAUUSD,GDP Growth days,46.0,11.8,52.2
 XAUUSD-ISM days,XAUUSD,ISM days,92.0,0.7,43.5
 XAUUSD-hot CPI days,XAUUSD,hot CPI days,20.0,-23.5,
 XAUUSD-cool CPI days,XAUUSD,cool CPI days,18.0,-15.1,
-XAUUSD-weekday-Mon,XAUUSD,weekday: Mon,,9.5,
+XAUUSD-weekday-Mon,XAUUSD,weekday: Mon,,9.4,
 XAUUSD-weekday-Tue,XAUUSD,weekday: Tue,,4.7,
 XAUUSD-weekday-Wed,XAUUSD,weekday: Wed,,2.3,
 XAUUSD-weekday-Thu,XAUUSD,weekday: Thu,,7.8,
 XAUUSD-weekday-Fri,XAUUSD,weekday: Fri,,3.2,
-XAUUSD-by_exit-end_of_day,XAUUSD,exit: end of day,604.0,43.8,
+XAUUSD-by_exit-end_of_day,XAUUSD,exit: end of day,605.0,43.7,
 XAUUSD-by_exit-stop_loss,XAUUSD,exit: stop loss,341.0,-62.2,
 XAUUSD-by_side-SHORT,XAUUSD,side: SHORT,428.0,6.6,
-XAUUSD-by_side-LONG,XAUUSD,side: LONG,517.0,4.6,
+XAUUSD-by_side-LONG,XAUUSD,side: LONG,518.0,4.6,
