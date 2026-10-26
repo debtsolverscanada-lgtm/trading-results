@@ -9,7 +9,7 @@ ETH-GDP Growth days,ETH,GDP Growth days,66.0,-45.1,36.4
 ETH-ISM days,ETH,ISM days,143.0,46.2,45.5
 ETH-hot CPI days,ETH,hot CPI days,32.0,-51.8,
 ETH-cool CPI days,ETH,cool CPI days,32.0,114.4,
-ETH-weekday-Mon,ETH,weekday: Mon,,26.1,
+ETH-weekday-Mon,ETH,weekday: Mon,,26.2,
 ETH-weekday-Tue,ETH,weekday: Tue,,-4.9,
 ETH-weekday-Wed,ETH,weekday: Wed,,40.2,
 ETH-weekday-Thu,ETH,weekday: Thu,,52.4,
@@ -19,7 +19,7 @@ ETH-weekday-Sun,ETH,weekday: Sun,,2.6,
 ETH-by_exit-end_of_day,ETH,exit: end of day,1501.0,129.7,
 ETH-by_exit-stop_loss,ETH,exit: stop loss,712.0,-217.4,
 ETH-by_side-SHORT,ETH,side: SHORT,1027.0,12.5,
-ETH-by_side-LONG,ETH,side: LONG,1186.0,22.8,
+ETH-by_side-LONG,ETH,side: LONG,1186.0,22.9,
 XAUUSD-news_days,XAUUSD,news days,491.0,4.8,
 XAUUSD-quiet_days,XAUUSD,quiet days,455.0,6.3,
 XAUUSD-Inflation Rate days,XAUUSD,Inflation Rate days,45.0,-7.4,28.9
