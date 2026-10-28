@@ -1,1 +1,2 @@
 trade_id,date,side,entry_time,entry,stop,target,lots,position_usd,risk_usd,held,best_usd,worst_usd,path,status,exit_time,exit,reason,pnl_usd,balance
+golddip-20261028-0155,2026-10-28,LONG,01:55,4047.72,4022.4,4050.88,0.03,12143.16,75.96,0h 05m,3.12,-7.38,4047.72;4048.76,open,,4048.76,open now (marked at last price),2.51,5000.0
