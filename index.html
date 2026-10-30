@@ -55,7 +55,7 @@
   const run = () => subs.forEach((fn) => { try { fn(); } catch (e) { console.error(e); } });
   ids.forEach((id) => {
     store[id] = { status: 'loading', data: [], columns: [] };
-    d3.csv(`data/${id}.csv?v=2026-10-30T19:02`).then((rows) => {
+    d3.csv(`data/${id}.csv?v=2026-10-30T20:03`).then((rows) => {
       store[id] = { status: 'ok', data: rows, columns: rows.columns || [] };
       run();
     }).catch((e) => { store[id] = { status: 'error', data: [], message: String(e) }; run(); });
@@ -1002,6 +1002,6 @@
 
 </div>
 <p class="site-foot">Simulated trading for research. No real money, no orders placed, not financial advice.
-Updated 2026-10-30 19:02 UTC.</p>
+Updated 2026-10-30 20:03 UTC.</p>
 </body>
 </html>
