@@ -1,6 +1,6 @@
 key,asset,group,trades,avg_net_bps,win_pct
 ETH-news_days,ETH,news days,799.0,35.5,
-ETH-quiet_days,ETH,quiet days,1416.0,7.9,
+ETH-quiet_days,ETH,quiet days,1417.0,7.8,
 ETH-Inflation Rate days,ETH,Inflation Rate days,77.0,19.0,40.3
 ETH-Non Farm Payrolls days,ETH,Non Farm Payrolls days,80.0,8.5,45.0
 ETH-Retail Sales days,ETH,Retail Sales days,69.0,18.1,55.1
@@ -13,13 +13,13 @@ ETH-weekday-Mon,ETH,weekday: Mon,,26.3,
 ETH-weekday-Tue,ETH,weekday: Tue,,-5.3,
 ETH-weekday-Wed,ETH,weekday: Wed,,40.2,
 ETH-weekday-Thu,ETH,weekday: Thu,,51.3,
-ETH-weekday-Fri,ETH,weekday: Fri,,6.5,
+ETH-weekday-Fri,ETH,weekday: Fri,,6.2,
 ETH-weekday-Sat,ETH,weekday: Sat,,5.3,
 ETH-weekday-Sun,ETH,weekday: Sun,,2.6,
-ETH-by_exit-end_of_day,ETH,exit: end of day,1501.0,129.8,
+ETH-by_exit-end_of_day,ETH,exit: end of day,1502.0,129.6,
 ETH-by_exit-stop_loss,ETH,exit: stop loss,714.0,-217.4,
 ETH-by_side-SHORT,ETH,side: SHORT,1028.0,12.4,
-ETH-by_side-LONG,ETH,side: LONG,1187.0,22.6,
+ETH-by_side-LONG,ETH,side: LONG,1188.0,22.5,
 XAUUSD-news_days,XAUUSD,news days,491.0,4.8,
 XAUUSD-quiet_days,XAUUSD,quiet days,458.0,6.5,
 XAUUSD-Inflation Rate days,XAUUSD,Inflation Rate days,45.0,-7.4,28.9
@@ -34,7 +34,7 @@ XAUUSD-weekday-Mon,XAUUSD,weekday: Mon,,9.2,
 XAUUSD-weekday-Tue,XAUUSD,weekday: Tue,,4.3,
 XAUUSD-weekday-Wed,XAUUSD,weekday: Wed,,2.3,
 XAUUSD-weekday-Thu,XAUUSD,weekday: Thu,,8.0,
-XAUUSD-weekday-Fri,XAUUSD,weekday: Fri,,4.2,
+XAUUSD-weekday-Fri,XAUUSD,weekday: Fri,,4.1,
 XAUUSD-by_exit-end_of_day,XAUUSD,exit: end of day,607.0,43.9,
 XAUUSD-by_exit-stop_loss,XAUUSD,exit: stop loss,342.0,-62.3,
 XAUUSD-by_side-SHORT,XAUUSD,side: SHORT,431.0,6.9,
