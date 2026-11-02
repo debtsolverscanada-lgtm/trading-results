@@ -1,5 +1,5 @@
 key,asset,venue,median_year_pct,bad_year_pct,good_year_pct,losing_year_chance_pct,typical_drawdown_pct,bad_drawdown_pct,losing_streak,total_pct,fees_doubled_pct,extra_slippage_pct,without_best10_pct
 ETH-binance,ETH,Low-fee exchange (0.10%),12.2,-6.8,38.4,17.2,-8.0,-15.4,11,119.6,16.7,94.5,38.2
 ETH-liquid,ETH,Liquid (0.19%),2.4,-13.4,25.3,41.7,-10.7,-19.0,11,24.3,-62.6,10.1,-21.4
-XAUUSD-cfd,XAUUSD,FX broker spread (0.01%),1.9,-8.5,15.2,38.8,-6.1,-11.4,11,15.6,6.7,-3.5,-11.2
-XAUUSD-liquid,XAUUSD,Liquid (0.19%),-17.4,-26.1,-7.7,99.3,-18.8,-26.8,12,-72.8,-94.1,-77.3,-78.7
+XAUUSD-cfd,XAUUSD,FX broker spread (0.01%),1.9,-8.5,15.2,39.1,-6.1,-11.5,11,15.2,6.3,-3.8,-11.5
+XAUUSD-liquid,XAUUSD,Liquid (0.19%),-17.5,-26.1,-7.7,99.3,-18.8,-26.9,12,-72.9,-94.1,-77.4,-78.8
