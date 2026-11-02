@@ -4436,7 +4436,7 @@ ETHUSD,ETH,Low-fee exchange,2217,ETH-binance-2217-out,2026-10-31 23:30,sell,out,
 ETHUSD,ETH,Low-fee exchange,2218,ETH-binance-2218-in,2026-11-01 08:45,buy,in,0.506,2276.31,2254.6,-0.58,0.0,2216.54,
 ETHUSD,ETH,Low-fee exchange,2218,ETH-binance-2218-out,2026-11-01 20:15,sell,out,0.506,2254.6,2254.6,-0.58,-10.99,2204.97,stop loss
 ETHUSD,ETH,Low-fee exchange,2219,ETH-binance-2219-in,2026-11-02 15:45,sell,in,0.223,2268.47,2317.84,-0.25,0.0,2204.72,
-ETHUSD,ETH,Low-fee exchange,2219,ETH-binance-2219-out,2026-11-02 17:45,buy,out,0.223,2259.3,2317.84,-0.25,2.04,2206.51,end of day
+ETHUSD,ETH,Low-fee exchange,2219,ETH-binance-2219-out,2026-11-02 18:45,buy,out,0.223,2254.05,2317.84,-0.25,3.22,2207.68,end of day
 ETHUSD,ETH,Liquid,1,ETH-liquid-1-in,2020-01-01 11:15,buy,in,2.137,130.98,128.68,-0.27,0.0,999.73,
 ETHUSD,ETH,Liquid,1,ETH-liquid-1-out,2020-01-01 23:30,sell,out,2.137,130.48,128.68,-0.27,-1.07,998.4,end of day
 ETHUSD,ETH,Liquid,2,ETH-liquid-2-in,2020-01-03 08:30,buy,in,1.15,130.15,125.88,-0.14,0.0,998.26,
@@ -8874,7 +8874,7 @@ ETHUSD,ETH,Liquid,2217,ETH-liquid-2217-out,2026-10-31 23:30,sell,out,0.402,2254.
 ETHUSD,ETH,Liquid,2218,ETH-liquid-2218-in,2026-11-01 08:45,buy,in,0.287,2276.31,2254.6,-0.62,0.0,1256.21,
 ETHUSD,ETH,Liquid,2218,ETH-liquid-2218-out,2026-11-01 20:15,sell,out,0.287,2254.6,2254.6,-0.62,-6.23,1249.36,stop loss
 ETHUSD,ETH,Liquid,2219,ETH-liquid-2219-in,2026-11-02 15:45,sell,in,0.126,2268.47,2317.84,-0.27,0.0,1249.09,
-ETHUSD,ETH,Liquid,2219,ETH-liquid-2219-out,2026-11-02 17:45,buy,out,0.126,2259.3,2317.84,-0.27,1.15,1249.97,end of day
+ETHUSD,ETH,Liquid,2219,ETH-liquid-2219-out,2026-11-02 18:45,buy,out,0.126,2254.05,2317.84,-0.27,1.82,1250.64,end of day
 XAUUSD,XAUUSD,FX broker,1,XAUUSD-cfd-1-in,2020-01-02 07:00,buy,in,0.01,1520.94,1518.95,-0.08,0.0,999.92,
 XAUUSD,XAUUSD,FX broker,1,XAUUSD-cfd-1-out,2020-01-02 08:00,sell,out,0.01,1518.95,1518.95,-0.08,-1.99,997.86,stop loss | 13:30 UTC Initial Jobless Claims 222.0 vs 225.0 f/c (miss/cool)
 XAUUSD,XAUUSD,FX broker,2,XAUUSD-cfd-2-in,2020-01-03 07:00,buy,in,0.01,1543.8,1528.95,-0.08,0.0,997.78,
